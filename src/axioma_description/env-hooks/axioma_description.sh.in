@@ -1,0 +1,11 @@
+# Setup script for axioma_description package
+# This script is sourced when the package is sourced
+
+# Add models directory to Gazebo model path
+AXIOMA_MODELS_DIR="@CMAKE_INSTALL_PREFIX@/share/@PROJECT_NAME@/models"
+
+if [ -n "$GAZEBO_MODEL_PATH" ]; then
+  export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$AXIOMA_MODELS_DIR
+else
+  export GAZEBO_MODEL_PATH=$AXIOMA_MODELS_DIR
+fi

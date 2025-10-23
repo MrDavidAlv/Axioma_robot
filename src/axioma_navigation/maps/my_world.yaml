@@ -1,0 +1,7 @@
+image: my_world2.pgm
+# Each 100 pixels is 1 meter
+resolution: 0.01000
+origin: [-0.5000000, -0.500000, 0.000000]
+negate: 0
+occupied_thresh: 0.55
+free_thresh: 0.196
