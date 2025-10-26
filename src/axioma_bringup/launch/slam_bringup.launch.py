@@ -11,6 +11,7 @@ def generate_launch_description():
     # Get package directories
     pkg_axioma_gazebo = get_package_share_directory('axioma_gazebo')
     pkg_axioma_navigation = get_package_share_directory('axioma_navigation')
+    pkg_axioma_description = get_package_share_directory('axioma_description')
 
     # 1. Launch Gazebo with robot
     gazebo_launch = IncludeLaunchDescription(
@@ -27,11 +28,13 @@ def generate_launch_description():
     )
 
     # 3. Launch RViz for visualization
+    rviz_config_file = os.path.join(pkg_axioma_description, 'rviz', 'slam-toolbox.yaml.rviz')
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
         name='rviz2',
         output='screen',
+        arguments=['-d', rviz_config_file],
         parameters=[{'use_sim_time': True}]
     )
 

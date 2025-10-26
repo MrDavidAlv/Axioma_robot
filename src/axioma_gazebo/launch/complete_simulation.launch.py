@@ -21,6 +21,7 @@ def generate_launch_description():
     # Paths
     world_file = os.path.join(pkg_axioma_description, 'worlds', 'empty.world')
     urdf_file = os.path.join(pkg_axioma_description, 'urdf', 'axioma.urdf')
+    sdf_file = os.path.join(pkg_axioma_description, 'models', 'axioma_v2', 'model.sdf')
 
     # Set Gazebo model path
     gazebo_models_path = os.path.join(pkg_axioma_description, 'models')
@@ -54,7 +55,7 @@ def generate_launch_description():
         executable='spawn_entity.py',
         arguments=[
             '-entity', 'axioma',
-            '-database', 'axioma_v2',
+            '-file', sdf_file,
             '-x', '0.0',
             '-y', '0.0',
             '-z', '0.1'

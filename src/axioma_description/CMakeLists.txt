@@ -12,7 +12,7 @@ find_package(gazebo_plugins REQUIRED)
 
 # Install directories
 install(
-  DIRECTORY models urdf launch rviz worlds
+  DIRECTORY models urdf  worlds rviz
   DESTINATION share/${PROJECT_NAME}
 )
 

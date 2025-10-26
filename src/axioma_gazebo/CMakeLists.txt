@@ -13,7 +13,7 @@ find_package(robot_state_publisher REQUIRED)
 
 # Install directories
 install(
-  DIRECTORY launch worlds config
+  DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
 )
 
