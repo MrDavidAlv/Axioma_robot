@@ -4,7 +4,7 @@
   <name>axioma_gazebo</name>
   <version>1.0.0</version>
   <description>Axioma Gazebo simulation launch files for ROS2 Humble</description>
-  <maintainer email="axioma@tadeorobotics.com">Axioma</maintainer>
+  <maintainer email="ing.marioalvarezvallejo@gmail.com">Mario David Alvarez Vallejo</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
@@ -13,6 +13,7 @@
   <depend>gazebo_plugins</depend>
   <depend>robot_state_publisher</depend>
   <depend>axioma_description</depend>
+  <depend>xacro</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

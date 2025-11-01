@@ -4,17 +4,31 @@
   <name>axioma_bringup</name>
   <version>1.0.0</version>
   <description>Bringup launch files for Axioma robot navigation and SLAM</description>
-  <maintainer email="davidalvarez33@gmail.com">axioma</maintainer>
+  <maintainer email="ing.marioalvarezvallejo@gmail.com">Mario David Alvarez Vallejo</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
 
+  <exec_depend>axioma_description</exec_depend>
   <exec_depend>axioma_gazebo</exec_depend>
   <exec_depend>axioma_navigation</exec_depend>
+  <exec_depend>gazebo_ros</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>navigation2</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>nav2_map_server</exec_depend>
+  <exec_depend>nav2_amcl</exec_depend>
+  <exec_depend>nav2_controller</exec_depend>
+  <exec_depend>nav2_planner</exec_depend>
+  <exec_depend>nav2_behaviors</exec_depend>
+  <exec_depend>nav2_bt_navigator</exec_depend>
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
   <exec_depend>slam_toolbox</exec_depend>
   <exec_depend>rviz2</exec_depend>
   <exec_depend>teleop_twist_keyboard</exec_depend>
+  <exec_depend>teleop_twist_joy</exec_depend>
+  <exec_depend>joy</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

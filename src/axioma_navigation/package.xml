@@ -4,12 +4,20 @@
   <name>axioma_navigation</name>
   <version>1.0.0</version>
   <description>Axioma Navigation2 and SLAM configuration for ROS2 Humble</description>
-  <maintainer email="axioma@tadeorobotics.com">Axioma</maintainer>
+  <maintainer email="ing.marioalvarezvallejo@gmail.com">Mario David Alvarez Vallejo</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <exec_depend>navigation2</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>nav2_map_server</exec_depend>
+  <exec_depend>nav2_amcl</exec_depend>
+  <exec_depend>nav2_controller</exec_depend>
+  <exec_depend>nav2_planner</exec_depend>
+  <exec_depend>nav2_behaviors</exec_depend>
+  <exec_depend>nav2_bt_navigator</exec_depend>
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
   <exec_depend>slam_toolbox</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
