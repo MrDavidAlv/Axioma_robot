@@ -21,20 +21,30 @@
 # 1. Instalar ROS2 Humble (Ubuntu 22.04)
 sudo apt update && sudo apt install ros-humble-desktop
 
-# 2. Clonar y compilar el proyecto
+# 2. Instalar TODAS las dependencias (un solo comando)
+sudo apt install -y python3-colcon-common-extensions python3-rosdep python3-argcomplete \
+                     gazebo ros-humble-gazebo-ros-pkgs \
+                     ros-humble-robot-state-publisher ros-humble-joint-state-publisher ros-humble-joint-state-publisher-gui \
+                     ros-humble-navigation2 ros-humble-nav2-bringup ros-humble-slam-toolbox \
+                     ros-humble-joy ros-humble-joy-linux ros-humble-teleop-twist-joy ros-humble-teleop-twist-keyboard \
+                     ros-humble-tf2-tools ros-humble-tf-transformations \
+                     ros-humble-rviz2 \
+                     ros-humble-xacro ros-humble-ros2-control ros-humble-ros2-controllers \
+                     ros-humble-rqt-robot-steering
+
+# 3. Clonar y compilar el proyecto
 mkdir -p ~/ros2/axioma_humble_ws/src
 cd ~/ros2/axioma_humble_ws/src
 git clone https://github.com/mrdavidavl/Axioma_robot.git .
 cd ~/ros2/axioma_humble_ws
-rosdep install --from-paths src --ignore-src -r -y
 colcon build
 source install/setup.bash
 
-# 3. Lanzar navegación autónoma (requiere mapa previo)
+# 4. Lanzar navegación autónoma (requiere mapa previo)
 ros2 launch axioma_bringup navigation_bringup.launch.py
 
 # O crear un mapa nuevo con SLAM
-ros2 launch axioma_bringup runmap.launch.py
+ros2 launch axioma_bringup slam_bringup.launch.py
 ```
 
 **📖 Ver [Instalación Completa](#instalación-y-configuración) | [Guía de Uso](#🚀-los-3-launches-esenciales)**
@@ -966,31 +976,72 @@ sudo apt install ros-humble-desktop
 
 ### Instalación de dependencias específicas
 
+#### Opción 1: Instalación manual de todas las dependencias (recomendado antes de clonar)
+
 ```bash
-# Dependencias del proyecto Axioma
-sudo apt install ros-humble-rqt-robot-steering ros-humble-robot-state-publisher ros-humble-joint-state-publisher
+# Herramientas de desarrollo ROS2
+sudo apt install -y python3-colcon-common-extensions python3-rosdep python3-argcomplete
 
-# Control con Joystick
-sudo apt install ros-humble-joy ros-humble-joy-linux ros-humble-teleop-twist-joy
+# Gazebo Classic (versión 11) para simulación
+sudo apt install -y gazebo ros-humble-gazebo-ros-pkgs
 
-# Herramientas de desarrollo
-sudo apt install python3-colcon-common-extensions python3-rosdep python3-argcomplete
+# Robot State Publisher y Joint State Publisher (con GUI para visualización)
+sudo apt install -y ros-humble-robot-state-publisher \
+                     ros-humble-joint-state-publisher \
+                     ros-humble-joint-state-publisher-gui
 
-# Navegación y SLAM
-sudo apt install ros-humble-navigation2 ros-humble-nav2-bringup ros-humble-slam-toolbox
+# Navegación autónoma (Nav2)
+sudo apt install -y ros-humble-navigation2 ros-humble-nav2-bringup
 
-# Gazebo para simulación
-sudo apt install ros-humble-gazebo-ros-pkgs
+# SLAM Toolbox (Mapeo y Localización Simultánea)
+sudo apt install -y ros-humble-slam-toolbox
 
-# TF2 herramientas
-sudo apt install ros-humble-tf2-tools ros-humble-tf-transformations
+# Control con Joystick Xbox
+sudo apt install -y ros-humble-joy \
+                     ros-humble-joy-linux \
+                     ros-humble-teleop-twist-joy
 
-# RViz2
-sudo apt install ros-humble-rviz2
+# Control con teclado
+sudo apt install -y ros-humble-teleop-twist-keyboard
 
-# Dependencias adicionales
-sudo apt install ros-humble-xacro ros-humble-ros2-control ros-humble-ros2-controllers
+# TF2 (Sistema de Transformaciones)
+sudo apt install -y ros-humble-tf2-tools ros-humble-tf-transformations
+
+# Visualización RViz2
+sudo apt install -y ros-humble-rviz2
+
+# URDF y Control
+sudo apt install -y ros-humble-xacro \
+                     ros-humble-ros2-control \
+                     ros-humble-ros2-controllers
+
+# Herramientas adicionales
+sudo apt install -y ros-humble-rqt-robot-steering
 ```
+
+#### Comando único para instalar todo
+
+```bash
+sudo apt install -y python3-colcon-common-extensions python3-rosdep python3-argcomplete \
+                     gazebo ros-humble-gazebo-ros-pkgs \
+                     ros-humble-robot-state-publisher ros-humble-joint-state-publisher ros-humble-joint-state-publisher-gui \
+                     ros-humble-navigation2 ros-humble-nav2-bringup ros-humble-slam-toolbox \
+                     ros-humble-joy ros-humble-joy-linux ros-humble-teleop-twist-joy ros-humble-teleop-twist-keyboard \
+                     ros-humble-tf2-tools ros-humble-tf-transformations \
+                     ros-humble-rviz2 \
+                     ros-humble-xacro ros-humble-ros2-control ros-humble-ros2-controllers \
+                     ros-humble-rqt-robot-steering
+```
+
+#### Opción 2: Usar rosdep (después de clonar el repositorio)
+
+```bash
+# Desde el directorio del workspace
+cd ~/ros2/axioma_humble_ws
+rosdep install --from-paths src --ignore-src -r -y
+```
+
+> **Nota:** La opción 1 asegura que todos los paquetes necesarios estén instalados antes de compilar. La opción 2 instalará las dependencias declaradas en los archivos `package.xml` del proyecto.
 
 ### Configuración del entorno
 
@@ -1634,6 +1685,54 @@ local_costmap:
    controller_server:
      transform_tolerance: 0.5  # Era 0.2
    ```
+
+---
+
+### Errores de paquetes faltantes
+
+**Síntomas:**
+- Error al compilar: "Could not find a package configuration file"
+- Error al lanzar: "Package 'nombre_paquete' not found"
+- Error específico: `package 'joint_state_publisher_gui' not found`
+
+**Causas y soluciones:**
+1. **Paquetes ROS2 no instalados**
+   ```bash
+   # Instalar todas las dependencias automáticamente
+   cd ~/ros2/axioma_humble_ws
+   rosdep install --from-paths src --ignore-src -r -y
+
+   # O instalar manualmente el paquete faltante (ejemplo con joint_state_publisher_gui)
+   sudo apt install ros-humble-joint-state-publisher-gui
+   ```
+
+2. **Verificar que ROS2 Humble esté instalado correctamente**
+   ```bash
+   # Verificar instalación de ROS2
+   ros2 --version
+   # Debe mostrar: ros2 cli version X.X.X
+
+   # Verificar que el setup esté sourced
+   source /opt/ros/humble/setup.bash
+   ```
+
+3. **Paquete específico no instalado**
+   ```bash
+   # Buscar paquete disponible
+   apt search ros-humble-nombre-paquete
+
+   # Instalar paquete específico
+   sudo apt install ros-humble-nombre-paquete
+   ```
+
+4. **Compilar después de instalar dependencias**
+   ```bash
+   cd ~/ros2/axioma_humble_ws
+   colcon build --symlink-install
+   source install/setup.bash
+   ```
+
+> **Tip:** Si acabas de clonar el repositorio, asegúrate de instalar TODAS las dependencias usando el comando único de instalación de la sección de dependencias antes de compilar.
 
 ---
 
