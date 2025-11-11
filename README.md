@@ -1,7 +1,7 @@
 # 🤖 Robot Autónomo Axioma 4WD
 
 <div align="center">
-<img src="images/portada.png" width="300"/>
+<img src="images/portada.png" width="450"/>
 </div>
 
 [![Lenguaje C++](https://img.shields.io/badge/C++-17-blue)](#)
