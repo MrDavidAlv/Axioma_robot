@@ -138,18 +138,21 @@
     <axis xyz="0 -1 0"/>
   </joint>
 
-  <!-- LIDAR Link -->
+  <!-- LIDAR Link: YDLIDAR X3 (360 deg, 0.12-8 m, 7 Hz).
+       The frame is called base_scan because that is what the scans are stamped
+       with, and what AMCL, SLAM Toolbox and both costmaps look up. The
+       measurement plane sits at the link origin, 0.15 m above base_link. -->
   <link name="base_scan">
     <visual>
       <geometry>
-        <cylinder radius="0.035" length="0.030"/>
+        <cylinder radius="0.031" length="0.041"/>
       </geometry>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <material name="dark_rubber"/>
     </visual>
     <collision>
       <geometry>
-        <cylinder radius="0.035" length="0.030"/>
+        <cylinder radius="0.031" length="0.041"/>
       </geometry>
       <origin xyz="0 0 0" rpy="0 0 0"/>
     </collision>

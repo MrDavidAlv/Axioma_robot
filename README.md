@@ -100,7 +100,7 @@ Mobile robot, autonomous navigation, industrial logistics, trajectory planning, 
 |---------|-------------|
 | **Real-time SLAM** | Simultaneous mapping and localization using SLAM Toolbox in asynchronous mode |
 | **Autonomous Navigation** | Full Nav2 stack with global planner (NavFn/Dijkstra) and local controller (DWB) |
-| **Obstacle Avoidance** | Real-time detection and evasion using 360-degree RPLidar A1 LiDAR |
+| **Obstacle Avoidance** | Real-time detection and evasion using a 360-degree YDLIDAR X3 |
 | **Teleoperation GUI** | PyQt5 graphical interface with keyboard, virtual joystick, and slider control modes |
 | **Keyboard Teleoperation** | Standard teleop_twist_keyboard support for manual control during mapping |
 | **Full Visualization** | RViz2 with dynamic costmaps, planned trajectories, and AMCL particle clouds |
@@ -185,7 +185,7 @@ Spatial transform tree: `map -> odom -> base_link -> sensors`. The `odom_to_tf` 
 <img src="images/SLAM.png" width="800"/>
 </div>
 
-SLAM Toolbox runs in asynchronous mode, building graph-based 2D occupancy grid maps in real time. It processes LiDAR scans at 20 Hz and odometry at 50 Hz with pose-graph optimization and loop closure detection.
+SLAM Toolbox runs in asynchronous mode, building graph-based 2D occupancy grid maps in real time. It processes LiDAR scans at 7 Hz and odometry at 50 Hz with pose-graph optimization and loop closure detection.
 
 ### Navigation System
 
@@ -209,45 +209,89 @@ so the simulation starts identically on any machine.
 
 | Area | Size | Contents |
 |------|------|----------|
-| **Reception** | 14 x 5 m | Front desk, two sofas, four columns, planter |
-| **Office 1** | 4.5 x 5 m | Desk, chair, filing cabinet |
-| **Office 2** | 4.5 x 5 m | Desk, chair, filing cabinet |
-| **Meeting room** | 5 x 5 m | 3 m table, four chairs, whiteboard |
+| **Reception** | 14 x 5 m | Front desk, sofa and coffee table, bench, planter, west cabinet, three columns, plant, water cooler |
+| **Office 1** | 4.5 x 5 m | Desk on the north wall, chair, filing cabinet on the west wall |
+| **Office 2** | 4.5 x 5 m | Desk on the west wall, chair, shelving on the east wall |
+| **Meeting room** | 5 x 5 m | 2.6 m table, four chairs, whiteboard |
 
 The three rooms open onto the reception through 1.4 m doorways, wide enough to
 leave 0.8 m of zero-cost corridor once the 0.30 m costmap inflation is applied.
-The columns are not decoration: the reception is 14 m long and the LiDAR only
-reaches 3.5 m, so without periodic features the scan matcher has no reference
-along the X axis.
+The columns are not decoration. They exist so that no two places in the building
+look alike to the LiDAR: their radii and spacing are deliberately irregular, and
+the two offices are furnished differently from each other. An environment that
+repeats itself feeds the pose graph false loop closures, and the map comes out
+with duplicated walls. See [SLAM quality](#slam-quality) for the measurements.
 
-### One source of truth for world and map
+### One source of truth for the world and its floor plan
 
 `src/axioma_gazebo/scripts/generate_office_world.py` emits **both** the Gazebo
-world and the Nav2 occupancy grid from the same geometry list, so the two can
-never drift apart:
+world and an exact occupancy grid of it from the same geometry list, so the two
+can never drift apart:
 
 ```bash
 python3 src/axioma_gazebo/scripts/generate_office_world.py
 # -> src/axioma_gazebo/worlds/office.world
-# -> src/axioma_navigation/maps/mapa.{pgm,yaml}
+# -> src/axioma_navigation/maps/ground_truth.{pgm,yaml}
 ```
 
 Only geometry taller than the LiDAR plane (0.15 m) is rasterised as an obstacle,
 and free space is flood-filled from the spawn point, so everything outside the
 building stays unknown - the same structure a real mapping run produces.
 
+`ground_truth` is **not** the map Nav2 navigates with. That one
+(`maps/mapa.yaml`) is produced by driving the robot around with SLAM Toolbox
+running, exactly as you would on the real robot. The exact plan exists so the
+quality of the SLAM map can be measured instead of eyeballed.
+
 <div align="center">
 <img src="images/office-map.png" width="800"/>
 </div>
 
-### Localisation check
+### SLAM quality
 
-Laser returns (green) projected onto the static map and onto the inflated global
-costmap. They land on the partition wall, the reception desk and the two nearest
-columns, confirming that the world, the map and the AMCL pose estimate all agree.
+`src/axioma_slam/scripts/score_map.py` compares the SLAM map against that exact
+plan and reports two numbers: how far each occupied cell of the SLAM map is from
+the nearest real obstacle (how much of the map is invented), and how many real
+obstacles inside explored territory the map actually marks.
+
+```bash
+python3 src/axioma_slam/scripts/score_map.py --saved out.png "run title"
+```
+
+Result for the shipped map, after a 90 m run through all four rooms:
+
+| Metric | Value |
+|--------|-------|
+| Occupied cells within 10 cm of a real obstacle | **99.8 %** |
+| Occupied cells within 20 cm | **100.0 %** |
+| Occupied cells further than 50 cm (invented) | **0.0 %** |
+| Real obstacles found within 10 cm | **99.6 %** |
+| **Score** (precision@10cm x recall@10cm) | **99.4 / 100** |
 
 <div align="center">
-<img src="images/costmap-validation.png" width="900"/>
+<img src="images/slam-map-quality.png" width="800"/>
+</div>
+
+Pink is the real geometry, black is the SLAM map. There is no blue, meaning no
+occupied cell sits more than 25 cm from a real wall.
+
+The pose graph has to work for it: raw wheel odometry drifts to **4.13 m** over
+the run, while SLAM Toolbox stays within **0.18 m** of the Gazebo ground-truth
+pose the whole time.
+
+<div align="center">
+<img src="images/slam-telemetry.png" width="960"/>
+</div>
+
+### Localisation check
+
+Live laser returns (green) projected onto the SLAM map and onto the inflated
+global costmap, with the AMCL pose in red. They land on the walls, the reception
+desk and the columns, confirming that the world, the map and the pose estimate
+all agree.
+
+<div align="center">
+<img src="images/costmap-validation.png" width="960"/>
 </div>
 
 ---
@@ -404,6 +448,15 @@ Save the map once the environment has been fully explored:
 ros2 launch axioma_slam save_map.launch.py
 ```
 
+With the workspace built using `--symlink-install` this writes straight into
+`src/axioma_navigation/maps/mapa.{pgm,yaml}`, so the map stays under version
+control instead of being overwritten by the next build. Check how good it came
+out with:
+
+```bash
+python3 src/axioma_slam/scripts/score_map.py
+```
+
 ### Autonomous Navigation
 
 Launch the simulation with Nav2 and RViz (requires a previously saved map):
@@ -468,6 +521,8 @@ Axioma_robot/
 │   ├── axioma_slam/               # SLAM Toolbox configuration
 │   │   ├── config/
 │   │   │   └── slam_params.yaml
+│   │   ├── scripts/
+│   │   │   └── score_map.py       # Scores a SLAM map against ground truth
 │   │   ├── rviz/
 │   │   └── launch/
 │   │       ├── slam.launch.py
@@ -512,7 +567,7 @@ Axioma_robot/
 | Friction coefficient | 1.0 on all four wheels | model.sdf |
 | Max torque | 20 N*m per wheel | model.sdf |
 | Max wheel acceleration | 30 rad/s^2 (~1.14 m/s^2) | model.sdf |
-| LiDAR (HLS-LFCD LDS) | 360 samples, 360 deg, 0.12-3.5 m, 20 Hz | model.sdf |
+| LiDAR (YDLIDAR X3) | 420 samples/rev, 360 deg, 0.12-8 m, 7 Hz | model.sdf |
 
 ---
 

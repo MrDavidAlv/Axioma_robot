@@ -20,7 +20,7 @@ amcl:
     global_frame_id: "map"
     lambda_short: 0.1
     laser_likelihood_max_dist: 2.0
-    laser_max_range: 3.5
+    laser_max_range: 8.0
     laser_min_range: 0.12
     laser_model_type: "likelihood_field"
     max_beams: 120  # Aumentado de 60 para mejor precisión
@@ -124,9 +124,9 @@ controller_server:
 
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      # 0.10 m en vez de los 0.5 por defecto: el robot va a 0.26 m/s como maximo.
-      # 30 s de margen hacian que cada atasco costase medio minuto antes de
-      # disparar la recuperacion; 10 s es suficiente y reacciona mucho antes.
+      # 0.10 m instead of the 0.5 default: the robot tops out at 0.26 m/s.
+      # A 30 s allowance made every stall cost half a minute before recovery
+      # fired; 10 s is plenty and reacts far sooner.
       required_movement_radius: 0.10
       movement_time_allowance: 10.0
 
@@ -147,9 +147,9 @@ controller_server:
       min_speed_xy: 0.0
       max_speed_xy: 0.26
       min_speed_theta: 0.0
-      # Coherentes con max_wheel_acceleration=30 rad/s^2 del plugin DiffDrive
-      # (radio 0.0381 m => ~1.14 m/s^2 lineal). Antes DWB creia disponer de
-      # 2.5 m/s^2, mas del doble de lo que el robot puede dar.
+      # Consistent with max_wheel_acceleration=30 rad/s^2 in the DiffDrive
+      # plugin (0.0381 m radius => about 1.14 m/s^2 linear). DWB used to assume
+      # 2.5 m/s^2, more than twice what the robot can deliver.
       acc_lim_x: 1.0
       acc_lim_y: 0.0
       acc_lim_theta: 3.2
@@ -207,9 +207,9 @@ local_costmap:
           clearing: True
           marking: True
           data_type: "LaserScan"
-          raytrace_max_range: 3.5
+          raytrace_max_range: 6.0
           raytrace_min_range: 0.0
-          obstacle_max_range: 3.5
+          obstacle_max_range: 6.0
           obstacle_min_range: 0.0
       always_send_full_costmap: True
 
@@ -235,9 +235,9 @@ global_costmap:
           clearing: True
           marking: True
           data_type: "LaserScan"
-          raytrace_max_range: 3.5
+          raytrace_max_range: 8.0
           raytrace_min_range: 0.0
-          obstacle_max_range: 3.5
+          obstacle_max_range: 8.0
           obstacle_min_range: 0.0
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
