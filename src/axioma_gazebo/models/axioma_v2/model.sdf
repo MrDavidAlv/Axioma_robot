@@ -442,8 +442,19 @@
            3% from 0.1 to 1.0 rad/s and straight-line odometry is exact. -->
       <wheel_separation>0.1679</wheel_separation>
       <wheel_radius>0.0381</wheel_radius>
-      <max_wheel_torque>20</max_wheel_torque>
-      <max_wheel_acceleration>30</max_wheel_acceleration>
+      <!-- max_wheel_torque and max_wheel_acceleration are Gazebo Classic tags.
+           gz-sim-diff-drive-system silently ignores them, so the robot had no
+           acceleration limit at all while DWB planned assuming one. These are
+           the tags this plugin actually reads, set to the same envelope Nav2
+           uses in nav2_params.yaml. -->
+      <min_linear_velocity>-0.26</min_linear_velocity>
+      <max_linear_velocity>0.26</max_linear_velocity>
+      <min_angular_velocity>-1.0</min_angular_velocity>
+      <max_angular_velocity>1.0</max_angular_velocity>
+      <min_linear_acceleration>-1.0</min_linear_acceleration>
+      <max_linear_acceleration>1.0</max_linear_acceleration>
+      <min_angular_acceleration>-3.2</min_angular_acceleration>
+      <max_angular_acceleration>3.2</max_angular_acceleration>
       <odom_publish_frequency>50</odom_publish_frequency>
       <topic>cmd_vel</topic>
       <odom_topic>odom</odom_topic>

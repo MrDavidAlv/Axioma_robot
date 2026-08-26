@@ -301,24 +301,43 @@ all agree.
 <img src="images/modelo-matematico.png" width="800"/>
 </div>
 
-Complete differential 4WD skid-steering kinematic model. The diagram shows the robot geometry, control equations, Nav2 integration, and dynamic specifications.
+4WD skid-steer kinematics, the control chain, and where every limit is enforced.
+The robot is drawn from its actual visual meshes in orthographic projection, and
+every number on the sheet is read from `model.sdf`, `axioma.urdf`,
+`nav2_params.yaml` and `slam_params.yaml` when the figure is rendered, so it
+cannot drift out of date:
+
+```bash
+python3 documentacion/modelo-matematico/render_diagram.py
+```
+
+Full write-up in [`documentacion/modelo-matematico/`](documentacion/modelo-matematico/).
 
 ### Key Parameters
 
 | Parameter | Value |
 |-----------|-------|
 | Wheel radius | $r = 0.0381$ m |
-| Wheel separation (geometric) | $W = 0.1725$ m |
-| Wheel separation (effective) | $W_{eff} = 0.265$ m |
+| Joint track | $W_j = 0.13635$ m |
+| Contact track | $W_c = 0.17635$ m |
+| **Effective track (used by the model)** | $W = 0.1679$ m |
+| Wheelbase | $L = 0.13564$ m |
 | Total mass | $m = 5.525$ kg |
 | Max linear velocity | $v_{max} = 0.26$ m/s |
 | Max angular velocity | $\omega_{max} = 1.0$ rad/s |
-| Max linear acceleration | $a_{max} = 2.5$ m/s² |
+| Max linear acceleration | $a_{max} = 1.0$ m/s² |
 | Max angular acceleration | $\alpha_{max} = 3.2$ rad/s² |
 
 **Differential kinematics:**
 
 $$v = \frac{r(\omega_R + \omega_L)}{2}, \quad \omega = \frac{r(\omega_R - \omega_L)}{W}$$
+
+$W$ is **not** a distance you can measure on the robot. Four fixed wheels cannot
+turn without scrubbing sideways, and that scrub fights the yaw: with the
+geometric track the robot rotated about **65 %** of what the odometry believed,
+and the error varied with speed. The fix is anisotropic wheel friction plus an
+effective track calibrated against the Gazebo ground-truth pose, which brings
+yaw error under 3 % from 0.1 to 1.0 rad/s.
 
 ---
 
@@ -561,11 +580,14 @@ Axioma_robot/
 | Parameter | Value | Source |
 |-----------|-------|--------|
 | Total mass | 5.525 kg | SDF model |
-| Wheelbase x track | 0.1356 x 0.1725 m | Joint origins |
+| Footprint (L x W x H) | 0.217 x 0.222 x 0.155 m | Visual meshes |
+| Circumscribed radius | 0.158 m (robot_radius 0.16) | Visual meshes |
+| Wheelbase x contact track | 0.1356 x 0.17635 m | Joint origins |
+| Effective track (plugin) | 0.1679 m, calibrated | model.sdf |
 | Wheel radius | 0.0381 m | model.sdf |
-| Friction coefficient | 1.0 on all four wheels | model.sdf |
-| Max torque | 20 N*m per wheel | model.sdf |
-| Max wheel acceleration | 30 rad/s^2 (~1.14 m/s^2) | model.sdf |
+| Wheel friction | mu 0.05 lateral, mu2 1.0 rolling, fdir1 on the axle | model.sdf |
+| Max linear acceleration | 1.0 m/s^2 | model.sdf, nav2_params.yaml |
+| Max angular acceleration | 3.2 rad/s^2 | model.sdf, nav2_params.yaml |
 | LiDAR (YDLIDAR X3 PRO) | 360 deg, 0.12-8 m, 40 klux, 4 kHz ranging | model.sdf |
 | LiDAR scan rate | 5-10 Hz adjustable, simulated at 7 Hz | model.sdf |
 | LiDAR angular resolution | 0.630 deg = 4 kHz ranging / 7 Hz scan rate | model.sdf |

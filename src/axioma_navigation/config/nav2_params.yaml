@@ -191,7 +191,9 @@ local_costmap:
       width: 6
       height: 6
       resolution: 0.05
-      robot_radius: 0.15
+      # Circumscribed radius of the real meshes measured from base_link is
+      # 0.158 m, so 0.15 left the footprint 8 mm short of the wheels.
+      robot_radius: 0.16
       plugins: ["obstacle_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
@@ -221,7 +223,9 @@ global_costmap:
       global_frame: map
       robot_base_frame: base_link
       use_sim_time: True
-      robot_radius: 0.15
+      # Circumscribed radius of the real meshes measured from base_link is
+      # 0.158 m, so 0.15 left the footprint 8 mm short of the wheels.
+      robot_radius: 0.16
       resolution: 0.05
       track_unknown_space: true
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
@@ -315,8 +319,10 @@ velocity_smoother:
     feedback: "OPEN_LOOP"
     max_velocity: [0.26, 0.0, 1.0]
     min_velocity: [-0.26, 0.0, -1.0]
-    max_accel: [2.5, 0.0, 3.2]
-    max_decel: [-2.5, 0.0, -3.2]
+    # Same envelope as DWB's acc_lim_x and the DiffDrive plugin; letting the
+    # smoother pass 2.5 m/s^2 only produced commands the robot could not track.
+    max_accel: [1.0, 0.0, 3.2]
+    max_decel: [-1.0, 0.0, -3.2]
     odom_topic: "odom"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
