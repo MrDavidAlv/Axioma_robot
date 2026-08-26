@@ -12,7 +12,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-yellow?logo=python)](#)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04-E95420?logo=ubuntu)](#)
 [![ROS2 Humble](https://img.shields.io/badge/ROS2-Humble-22314E?logo=ros)](#)
-[![Gazebo Harmonic](https://img.shields.io/badge/Gazebo-Harmonic-orange)](#)
+[![Ignition Fortress](https://img.shields.io/badge/Gazebo-Fortress-orange)](#)
 [![Nav2](https://img.shields.io/badge/Nav2-Humble-00599C)](#)
 [![SLAM Toolbox](https://img.shields.io/badge/SLAM-Toolbox-green)](#)
 [![License](https://img.shields.io/badge/License-BSD-green.svg)](LICENSE)
@@ -63,6 +63,7 @@ See [Installation](#installation) and [Usage](#usage) for detailed instructions.
 - [Robot Gallery](#robot-gallery)
 - [Video Demonstrations](#video-demonstrations)
 - [System Architecture](#system-architecture)
+- [Simulation Environment](#simulation-environment)
 - [Mathematical Model](#mathematical-model)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -87,7 +88,7 @@ This project implements autonomous navigation software using ROS2 for the **Axio
 
 ### Keywords
 
-Mobile robot, autonomous navigation, industrial logistics, trajectory planning, ROS2 Humble, Gazebo Harmonic, Nav2, SLAM, differential drive, skid-steering
+Mobile robot, autonomous navigation, industrial logistics, trajectory planning, ROS2 Humble, Ignition Gazebo Fortress, Nav2, SLAM, differential drive, skid-steering
 
 ---
 
@@ -104,7 +105,7 @@ Mobile robot, autonomous navigation, industrial logistics, trajectory planning, 
 | **Keyboard Teleoperation** | Standard teleop_twist_keyboard support for manual control during mapping |
 | **Full Visualization** | RViz2 with dynamic costmaps, planned trajectories, and AMCL particle clouds |
 | **4WD Differential Robot** | Robust odometry from 1000 PPR encoders with skid-steering kinematics |
-| **Gazebo Harmonic Simulation** | Modern Gazebo Sim with ros_gz bridge for all sensor and actuator interfaces |
+| **Ignition Gazebo Simulation** | Gazebo Sim (Fortress) with the ros_gz bridge for all sensor and actuator interfaces |
 | **Configurable Parameters** | All Nav2, AMCL, SLAM, and DWB parameters tunable per application |
 | **Open Source** | BSD license, free for academic, research, and commercial use |
 
@@ -176,7 +177,7 @@ Mobile robot, autonomous navigation, industrial logistics, trajectory planning, 
 <img src="images/URDF-TF.png" width="800"/>
 </div>
 
-Spatial transform tree: `map -> odom -> base_footprint -> base_link -> sensors`. The `odom_to_tf` node publishes the `odom -> base_link` transform from Gazebo odometry. AMCL publishes `map -> odom` to correct odometric drift during navigation.
+Spatial transform tree: `map -> odom -> base_link -> sensors`. The `odom_to_tf` node publishes the `odom -> base_link` transform from Gazebo odometry. AMCL publishes `map -> odom` to correct odometric drift during navigation.
 
 ### SLAM System
 
@@ -184,7 +185,7 @@ Spatial transform tree: `map -> odom -> base_footprint -> base_link -> sensors`.
 <img src="images/SLAM.png" width="800"/>
 </div>
 
-SLAM Toolbox runs in asynchronous mode, building graph-based 2D occupancy grid maps in real time. It processes LiDAR scans at 5.5 Hz and odometry at 50 Hz with pose-graph optimization and loop closure detection.
+SLAM Toolbox runs in asynchronous mode, building graph-based 2D occupancy grid maps in real time. It processes LiDAR scans at 20 Hz and odometry at 50 Hz with pose-graph optimization and loop closure detection.
 
 ### Navigation System
 
@@ -193,6 +194,61 @@ SLAM Toolbox runs in asynchronous mode, building graph-based 2D occupancy grid m
 </div>
 
 The Nav2 stack integrates the NavFn global planner (Dijkstra), the DWB local controller (Dynamic Window Approach), dynamic costmaps with inflation and obstacle layers, and recovery behaviors (spin, backup, wait).
+
+---
+
+## Simulation Environment
+
+The simulated world is a small office floor plan built entirely from primitive
+geometry (boxes and cylinders). It loads instantly and pulls nothing from Fuel,
+so the simulation starts identically on any machine.
+
+<div align="center">
+<img src="images/office-world.png" width="800"/>
+</div>
+
+| Area | Size | Contents |
+|------|------|----------|
+| **Reception** | 14 x 5 m | Front desk, two sofas, four columns, planter |
+| **Office 1** | 4.5 x 5 m | Desk, chair, filing cabinet |
+| **Office 2** | 4.5 x 5 m | Desk, chair, filing cabinet |
+| **Meeting room** | 5 x 5 m | 3 m table, four chairs, whiteboard |
+
+The three rooms open onto the reception through 1.4 m doorways, wide enough to
+leave 0.8 m of zero-cost corridor once the 0.30 m costmap inflation is applied.
+The columns are not decoration: the reception is 14 m long and the LiDAR only
+reaches 3.5 m, so without periodic features the scan matcher has no reference
+along the X axis.
+
+### One source of truth for world and map
+
+`src/axioma_gazebo/scripts/generate_office_world.py` emits **both** the Gazebo
+world and the Nav2 occupancy grid from the same geometry list, so the two can
+never drift apart:
+
+```bash
+python3 src/axioma_gazebo/scripts/generate_office_world.py
+# -> src/axioma_gazebo/worlds/office.world
+# -> src/axioma_navigation/maps/mapa.{pgm,yaml}
+```
+
+Only geometry taller than the LiDAR plane (0.15 m) is rasterised as an obstacle,
+and free space is flood-filled from the spawn point, so everything outside the
+building stays unknown - the same structure a real mapping run produces.
+
+<div align="center">
+<img src="images/office-map.png" width="800"/>
+</div>
+
+### Localisation check
+
+Laser returns (green) projected onto the static map and onto the inflated global
+costmap. They land on the partition wall, the reception desk and the two nearest
+columns, confirming that the world, the map and the AMCL pose estimate all agree.
+
+<div align="center">
+<img src="images/costmap-validation.png" width="900"/>
+</div>
 
 ---
 
@@ -209,7 +265,8 @@ Complete differential 4WD skid-steering kinematic model. The diagram shows the r
 | Parameter | Value |
 |-----------|-------|
 | Wheel radius | $r = 0.0381$ m |
-| Wheel separation | $W = 0.1725$ m |
+| Wheel separation (geometric) | $W = 0.1725$ m |
+| Wheel separation (effective) | $W_{eff} = 0.265$ m |
 | Total mass | $m = 5.525$ kg |
 | Max linear velocity | $v_{max} = 0.26$ m/s |
 | Max angular velocity | $\omega_{max} = 1.0$ rad/s |
@@ -228,14 +285,14 @@ $$v = \frac{r(\omega_R + \omega_L)}{2}, \quad \omega = \frac{r(\omega_R - \omega
 
 - **Operating System**: Ubuntu 22.04 LTS
 - **ROS2**: Humble Hawksbill
-- **Gazebo**: Harmonic (gz-sim 8)
+- **Gazebo**: Ignition Fortress (gz-sim 6) — the version `ros-humble-ros-gz` is built against
 - **Python**: 3.8+
 - **CMake**: 3.16+
 
 ### ROS2 Dependencies
 
 ```
-ros-humble-ros-gz              # Gazebo Harmonic integration
+ros-humble-ros-gz              # Ignition Fortress integration
 ros-humble-navigation2         # Full Nav2 stack
 ros-humble-slam-toolbox        # SLAM mapping
 ros-humble-rviz2               # Visualization
@@ -271,11 +328,14 @@ sudo apt update && sudo apt upgrade
 sudo apt install ros-humble-desktop
 ```
 
-### 2. Install Gazebo Harmonic
+### 2. Install Ignition Gazebo Fortress
 
 ```bash
-sudo apt install gz-harmonic ros-humble-ros-gz
+sudo apt install ignition-fortress ros-humble-ros-gz
 ```
+
+> The Humble binaries of `ros_gz` are built against Fortress (gz-sim 6). Installing
+> Gazebo Harmonic alongside will not change which simulator the launch files start.
 
 ### 3. Install Project Dependencies
 
@@ -393,11 +453,15 @@ Axioma_robot/
 │   │   ├── rviz/
 │   │   └── launch/
 │   │
-│   ├── axioma_gazebo/             # Gazebo Harmonic simulation
+│   ├── axioma_gazebo/             # Ignition Gazebo (Fortress) simulation
 │   │   ├── axioma_gazebo/
 │   │   │   └── odom_to_tf.py      # Odometry to TF broadcaster
 │   │   ├── models/axioma_v2/      # SDF model with meshes
-│   │   ├── worlds/                # Simulation worlds
+│   │   ├── scripts/
+│   │   │   └── generate_office_world.py   # Emits world + Nav2 map together
+│   │   ├── worlds/
+│   │   │   ├── office.world       # Reception, 2 offices, meeting room
+│   │   │   └── empty.world
 │   │   └── launch/
 │   │       └── simulation.launch.py
 │   │
@@ -443,11 +507,12 @@ Axioma_robot/
 | Parameter | Value | Source |
 |-----------|-------|--------|
 | Total mass | 5.525 kg | SDF model |
-| Dimensions (L x W x H) | 0.1356 x 0.1725 x 0.1 m | Geometry |
+| Wheelbase x track | 0.1356 x 0.1725 m | Joint origins |
 | Wheel radius | 0.0381 m | model.sdf |
-| Friction coefficient | 1.0 (wheels), 0.0 (caster) | SDF |
+| Friction coefficient | 1.0 on all four wheels | model.sdf |
 | Max torque | 20 N*m per wheel | model.sdf |
-| LiDAR (RPLidar A1) | 360 samples, 360 deg, 0.15-12 m, 5.5 Hz | SDF |
+| Max wheel acceleration | 30 rad/s^2 (~1.14 m/s^2) | model.sdf |
+| LiDAR (HLS-LFCD LDS) | 360 samples, 360 deg, 0.12-3.5 m, 20 Hz | model.sdf |
 
 ---
 

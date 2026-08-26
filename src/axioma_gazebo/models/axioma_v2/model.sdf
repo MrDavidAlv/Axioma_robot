@@ -406,10 +406,15 @@
       <left_joint>base_to_wheel2</left_joint>
       <right_joint>base_to_wheel4</right_joint>
       <right_joint>base_to_wheel3</right_joint>
-      <wheel_separation>0.1725</wheel_separation>
+      <!-- Ancho de via EFECTIVO, no el geometrico (0.1725 m). Este robot es un
+           skid-steer de 4 ruedas: al girar las ruedas arrastran lateralmente y
+           gira ~0.65x de lo que giraria un diferencial puro. Con el valor
+           geometrico la odometria de giro se iba un -35% frente a la realidad
+           y hacia divergir SLAM y AMCL. Calibrado contra la pose real de Gazebo. -->
+      <wheel_separation>0.265</wheel_separation>
       <wheel_radius>0.0381</wheel_radius>
       <max_wheel_torque>20</max_wheel_torque>
-      <max_wheel_acceleration>1</max_wheel_acceleration>
+      <max_wheel_acceleration>30</max_wheel_acceleration>
       <odom_publish_frequency>50</odom_publish_frequency>
       <topic>cmd_vel</topic>
       <odom_topic>odom</odom_topic>
