@@ -100,7 +100,7 @@ Mobile robot, autonomous navigation, industrial logistics, trajectory planning, 
 |---------|-------------|
 | **Real-time SLAM** | Simultaneous mapping and localization using SLAM Toolbox in asynchronous mode |
 | **Autonomous Navigation** | Full Nav2 stack with global planner (NavFn/Dijkstra) and local controller (DWB) |
-| **Obstacle Avoidance** | Real-time detection and evasion using a 360-degree YDLIDAR X3 |
+| **Obstacle Avoidance** | Real-time detection and evasion using a 360-degree YDLIDAR X3 PRO |
 | **Teleoperation GUI** | PyQt5 graphical interface with keyboard, virtual joystick, and slider control modes |
 | **Keyboard Teleoperation** | Standard teleop_twist_keyboard support for manual control during mapping |
 | **Full Visualization** | RViz2 with dynamic costmaps, planned trajectories, and AMCL particle clouds |
@@ -185,7 +185,7 @@ Spatial transform tree: `map -> odom -> base_link -> sensors`. The `odom_to_tf` 
 <img src="images/SLAM.png" width="800"/>
 </div>
 
-SLAM Toolbox runs in asynchronous mode, building graph-based 2D occupancy grid maps in real time. It processes LiDAR scans at 7 Hz and odometry at 50 Hz with pose-graph optimization and loop closure detection.
+SLAM Toolbox runs in asynchronous mode, building graph-based 2D occupancy grid maps in real time. It processes LiDAR scans at 7 Hz (571 points per revolution) and odometry at 50 Hz with pose-graph optimization and loop closure detection.
 
 ### Navigation System
 
@@ -262,11 +262,10 @@ Result for the shipped map, after a 90 m run through all four rooms:
 
 | Metric | Value |
 |--------|-------|
-| Occupied cells within 10 cm of a real obstacle | **99.8 %** |
-| Occupied cells within 20 cm | **100.0 %** |
+| Occupied cells within 10 cm of a real obstacle | **100.0 %** |
 | Occupied cells further than 50 cm (invented) | **0.0 %** |
-| Real obstacles found within 10 cm | **99.6 %** |
-| **Score** (precision@10cm x recall@10cm) | **99.4 / 100** |
+| Real obstacles found within 10 cm | **99.8 %** |
+| **Score** (precision@10cm x recall@10cm) | **99.8 / 100** |
 
 <div align="center">
 <img src="images/slam-map-quality.png" width="800"/>
@@ -275,9 +274,9 @@ Result for the shipped map, after a 90 m run through all four rooms:
 Pink is the real geometry, black is the SLAM map. There is no blue, meaning no
 occupied cell sits more than 25 cm from a real wall.
 
-The pose graph has to work for it: raw wheel odometry drifts to **4.13 m** over
-the run, while SLAM Toolbox stays within **0.18 m** of the Gazebo ground-truth
-pose the whole time.
+The pose graph has to work for it: raw wheel odometry drifts to **3.79 m** over
+the run, while SLAM Toolbox stays within **0.14 m** of the Gazebo ground-truth
+pose the whole time, with no jumps.
 
 <div align="center">
 <img src="images/slam-telemetry.png" width="960"/>
@@ -567,8 +566,9 @@ Axioma_robot/
 | Friction coefficient | 1.0 on all four wheels | model.sdf |
 | Max torque | 20 N*m per wheel | model.sdf |
 | Max wheel acceleration | 30 rad/s^2 (~1.14 m/s^2) | model.sdf |
-| LiDAR (YDLIDAR X3) | 360 deg, 0.12-8 m, 7 Hz, 420 samples/rev | model.sdf |
-| LiDAR angular resolution | 0.857 deg = 3 kHz ranging / 7 Hz scan rate | model.sdf |
+| LiDAR (YDLIDAR X3 PRO) | 360 deg, 0.12-8 m, 40 klux, 4 kHz ranging | model.sdf |
+| LiDAR scan rate | 5-10 Hz adjustable, simulated at 7 Hz | model.sdf |
+| LiDAR angular resolution | 0.630 deg = 4 kHz ranging / 7 Hz scan rate | model.sdf |
 
 ---
 

@@ -138,7 +138,7 @@
     <axis xyz="0 -1 0"/>
   </joint>
 
-  <!-- LIDAR Link: YDLIDAR X3 (360 deg, 0.12-8 m, 7 Hz).
+  <!-- LIDAR Link: YDLIDAR X3 PRO (360 deg, 0.12-8 m, 4 kHz ranging, 5-10 Hz).
        The frame is called base_scan because that is what the scans are stamped
        with, and what AMCL, SLAM Toolbox and both costmaps look up. The
        measurement plane sits at the link origin, 0.15 m above base_link. -->

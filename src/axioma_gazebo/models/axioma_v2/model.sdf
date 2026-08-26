@@ -376,22 +376,25 @@
           </cylinder>
         </geometry>
       </visual>
-      <!-- YDLIDAR X3 (marked X3-YB-1 on the unit).
-           Single-channel triangulation head: the ranging rate is fixed at about
-           3 kHz and the motor speed is adjustable, so angular resolution falls
-           out of the two:
+      <!-- YDLIDAR X3 PRO (the unit is marked X3-YB-1).
+           Triangulation head, 0.12-8 m, 40 klux ambient light rejection. The
+           ranging rate is fixed at 4 kHz and the motor speed is adjustable
+           between 5 and 10 Hz, so angular resolution falls out of the two:
 
-               samples per revolution = ranging rate / scan frequency
+               samples per revolution = 4000 / scan frequency
 
-           Modelled here at the stock 7 Hz, which gives 420 samples (0.857 deg).
-           If ydlidar_ros2_driver is run at a different frequency on the real
-           robot, change <samples> to match or the simulated scan will be denser
-           or sparser than the real one. Range is 0.12-8 m; note the driver's
-           range_max default of 12 m is a software clamp, not the sensor.
+                 5 Hz -> 800 samples, 0.450 deg
+                 7 Hz -> 571 samples, 0.630 deg   <- modelled here
+                10 Hz -> 400 samples, 0.900 deg
+
+           If ydlidar_ros2_driver runs the real head at a different frequency,
+           change <update_rate> and <samples> together, otherwise the simulated
+           scan is denser or sparser than the real one. The driver's range_max
+           default of 12 m is a software clamp, not the sensor.
 
            Angles run from -pi so the simulated scan is laid out the same way
            the driver publishes it. -->
-      <sensor name="ydlidar_x3" type="gpu_lidar">
+      <sensor name="ydlidar_x3_pro" type="gpu_lidar">
         <pose>0 0 0 0 0 0</pose>
         <always_on>true</always_on>
         <visualize>true</visualize>
@@ -401,10 +404,10 @@
         <lidar>
           <scan>
             <horizontal>
-              <samples>420</samples>
+              <samples>571</samples>
               <resolution>1</resolution>
               <min_angle>-3.141593</min_angle>
-              <max_angle>3.126633</max_angle>
+              <max_angle>3.130589</max_angle>
             </horizontal>
           </scan>
           <range>
