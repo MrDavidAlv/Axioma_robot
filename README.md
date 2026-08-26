@@ -185,7 +185,7 @@ Spatial transform tree: `map -> odom -> base_link -> sensors`. The `odom_to_tf` 
 <img src="images/SLAM.png" width="800"/>
 </div>
 
-SLAM Toolbox runs in asynchronous mode, building graph-based 2D occupancy grid maps in real time. It processes LiDAR scans at 7 Hz (571 points per revolution) and odometry at 50 Hz with pose-graph optimization and loop closure detection.
+SLAM Toolbox runs in asynchronous mode, building graph-based 2D occupancy grid maps in real time. It processes LiDAR scans at 10 Hz (400 points per revolution) and odometry at 50 Hz with pose-graph optimization and loop closure detection.
 
 ### Navigation System
 
@@ -475,6 +475,22 @@ out with:
 python3 src/axioma_slam/scripts/score_map.py
 ```
 
+### Physical LiDAR
+
+On the real robot, start the YDLIDAR X3 PRO with the profile this project ships:
+
+```bash
+ros2 launch axioma_bringup lidar.launch.py            # /dev/ttyUSB0
+ros2 launch axioma_bringup lidar.launch.py port:=/dev/ttyUSB1
+```
+
+`ydlidar_ros2_driver`'s own launch defaults to `params/ydlidar.yaml`, which is an
+X4 profile: 128000 baud, dual channel, 9 kHz. Starting an X3 PRO with it makes
+the driver wait for a device-info reply the hardware never sends, and it logs
+`Failed to get scan` indefinitely. The shipped profile also stamps scans with
+`base_scan`, the frame the URDF, AMCL, both costmaps and SLAM Toolbox look up;
+the stock `laser_frame` breaks every TF lookup on the real robot.
+
 ### Autonomous Navigation
 
 Launch the simulation with Nav2 and RViz (requires a previously saved map):
@@ -514,9 +530,12 @@ ros2 bag record -a -o navigation_data
 Axioma_robot/
 ├── src/
 │   ├── axioma_bringup/            # Top-level launch orchestrators
+│   │   ├── config/
+│   │   │   └── ydlidar_x3_pro.yaml    # Driver params for the real LiDAR
 │   │   └── launch/
 │   │       ├── slam_bringup.launch.py
-│   │       └── navigation_bringup.launch.py
+│   │       ├── navigation_bringup.launch.py
+│   │       └── lidar.launch.py        # Physical YDLIDAR X3 PRO
 │   │
 │   ├── axioma_description/        # URDF model, meshes, RViz configs
 │   │   ├── urdf/
@@ -589,8 +608,8 @@ Axioma_robot/
 | Max linear acceleration | 1.0 m/s^2 | model.sdf, nav2_params.yaml |
 | Max angular acceleration | 3.2 rad/s^2 | model.sdf, nav2_params.yaml |
 | LiDAR (YDLIDAR X3 PRO) | 360 deg, 0.12-8 m, 40 klux, 4 kHz ranging | model.sdf |
-| LiDAR scan rate | 5-10 Hz adjustable, simulated at 7 Hz | model.sdf |
-| LiDAR angular resolution | 0.630 deg = 4 kHz ranging / 7 Hz scan rate | model.sdf |
+| LiDAR scan rate | 5-10 Hz adjustable, run at 10 Hz | model.sdf, ydlidar_x3_pro.yaml |
+| LiDAR angular resolution | 0.900 deg = 4 kHz ranging / 10 Hz scan rate | model.sdf |
 
 ---
 

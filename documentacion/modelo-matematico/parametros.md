@@ -164,9 +164,9 @@ Giro libre, sin límite de par declarado.
 | Tópico | `/scan` |
 | Alcance | 0.12 – 8.0 m |
 | Campo | 360°, de $-\pi$ a $+\pi - \Delta$ |
-| Muestras por vuelta | 571 |
-| Resolución angular | 0.630° |
-| Frecuencia de giro | 7 Hz (ajustable 5–10 Hz) |
+| Muestras por vuelta | 400 |
+| Resolución angular | 0.900° |
+| Frecuencia de giro | 10 Hz (ajustable 5–10 Hz) |
 | Tasa de telemetría | 4 kHz |
 | Ruido | gaussiano, $\sigma = 0.015$ m |
 | Rechazo de luz ambiente | 40 klux |
@@ -175,16 +175,18 @@ La resolución **no es un dato fijo del sensor**: es de canal único, así que
 
 $$
 \text{muestras por vuelta} = \frac{\text{tasa de telemetría}}{\text{frecuencia de giro}}
-= \frac{4000}{7} \approx 571
+= \frac{4000}{10} = 400
 $$
 
 | Frecuencia | Muestras/vuelta | Resolución |
 |------------|-----------------|------------|
 | 5 Hz | 800 | 0.450° |
-| **7 Hz** | **571** | **0.630°** |
-| 10 Hz | 400 | 0.900° |
+| 7 Hz | 571 | 0.630° |
+| **10 Hz** | **400** | **0.900°** |
 
 Si se cambia `<update_rate>` hay que cambiar `<samples>` en la misma proporción.
+El robot físico usa la misma frecuencia:
+`axioma_bringup/config/ydlidar_x3_pro.yaml` pide 10 Hz al cabezal.
 
 ### 5.2 Transformada
 

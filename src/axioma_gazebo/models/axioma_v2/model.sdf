@@ -384,8 +384,11 @@
                samples per revolution = 4000 / scan frequency
 
                  5 Hz -> 800 samples, 0.450 deg
-                 7 Hz -> 571 samples, 0.630 deg   <- modelled here
-                10 Hz -> 400 samples, 0.900 deg
+                 7 Hz -> 571 samples, 0.630 deg
+                10 Hz -> 400 samples, 0.900 deg   <- modelled here
+
+           10 Hz is what axioma_bringup/config/ydlidar_x3_pro.yaml asks the real
+           head for, so the simulated scan has the same density as the robot's.
 
            If ydlidar_ros2_driver runs the real head at a different frequency,
            change <update_rate> and <samples> together, otherwise the simulated
@@ -398,16 +401,16 @@
         <pose>0 0 0 0 0 0</pose>
         <always_on>true</always_on>
         <visualize>true</visualize>
-        <update_rate>7</update_rate>
+        <update_rate>10</update_rate>
         <topic>scan</topic>
         <gz_frame_id>base_scan</gz_frame_id>
         <lidar>
           <scan>
             <horizontal>
-              <samples>571</samples>
+              <samples>400</samples>
               <resolution>1</resolution>
               <min_angle>-3.141593</min_angle>
-              <max_angle>3.130589</max_angle>
+              <max_angle>3.125885</max_angle>
             </horizontal>
           </scan>
           <range>

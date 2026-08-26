@@ -130,7 +130,7 @@ Skid-steer 4WD
 │  ├─ Entrada:  /cmd_vel   (Twist)
 │  └─ Salida:   /odom      (Odometry) + TF odom → base_link vía odom_to_tf
 │
-├─ Percepción  YDLIDAR X3 PRO, 0.12–8 m, 7 Hz, 571 pts/vuelta
+├─ Percepción  YDLIDAR X3 PRO, 0.12–8 m, 10 Hz, 400 pts/vuelta
 │
 └─ Navegación  Nav2 Humble
    ├─ AMCL          localización sobre mapa conocido
