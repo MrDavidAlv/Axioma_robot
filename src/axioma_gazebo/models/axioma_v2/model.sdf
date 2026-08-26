@@ -376,11 +376,21 @@
           </cylinder>
         </geometry>
       </visual>
-      <!-- YDLIDAR X3.
-           0.12-8 m, 360 deg, 7 Hz scan rate with ~3 kHz ranging, which works
-           out at 420 samples per revolution (0.857 deg). Angles run from -pi so
-           the simulated scan matches what ydlidar_ros2_driver publishes on the
-           real robot. -->
+      <!-- YDLIDAR X3 (marked X3-YB-1 on the unit).
+           Single-channel triangulation head: the ranging rate is fixed at about
+           3 kHz and the motor speed is adjustable, so angular resolution falls
+           out of the two:
+
+               samples per revolution = ranging rate / scan frequency
+
+           Modelled here at the stock 7 Hz, which gives 420 samples (0.857 deg).
+           If ydlidar_ros2_driver is run at a different frequency on the real
+           robot, change <samples> to match or the simulated scan will be denser
+           or sparser than the real one. Range is 0.12-8 m; note the driver's
+           range_max default of 12 m is a software clamp, not the sensor.
+
+           Angles run from -pi so the simulated scan is laid out the same way
+           the driver publishes it. -->
       <sensor name="ydlidar_x3" type="gpu_lidar">
         <pose>0 0 0 0 0 0</pose>
         <always_on>true</always_on>

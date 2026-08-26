@@ -567,7 +567,8 @@ Axioma_robot/
 | Friction coefficient | 1.0 on all four wheels | model.sdf |
 | Max torque | 20 N*m per wheel | model.sdf |
 | Max wheel acceleration | 30 rad/s^2 (~1.14 m/s^2) | model.sdf |
-| LiDAR (YDLIDAR X3) | 420 samples/rev, 360 deg, 0.12-8 m, 7 Hz | model.sdf |
+| LiDAR (YDLIDAR X3) | 360 deg, 0.12-8 m, 7 Hz, 420 samples/rev | model.sdf |
+| LiDAR angular resolution | 0.857 deg = 3 kHz ranging / 7 Hz scan rate | model.sdf |
 
 ---
 
