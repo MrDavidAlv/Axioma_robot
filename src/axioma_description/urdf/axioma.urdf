@@ -1,6 +1,23 @@
 <?xml version="1.0"?>
 <robot name="axioma_v2">
 
+  <!-- Base Footprint: the ground projection of base_link, and the root of the
+       tree. It carries no <inertial> on purpose: KDL cannot handle an inertia
+       on the root link, and robot_state_publisher warns about it on every
+       start when base_link is the root.
+
+       The 2.58 mm offset is not arbitrary. Wheel centres sit at z = 0.04068
+       and the wheels have radius 0.0381, so with the wheels on the ground
+       base_link ends up 0.0381 - 0.04068 = -0.00258 m below the floor. Gazebo
+       reports exactly that z for the spawned model. -->
+  <link name="base_footprint"/>
+
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 -0.00258" rpy="0 0 0"/>
+  </joint>
+
   <!-- Base Link -->
   <link name="base_link">
     <visual>
@@ -18,9 +35,11 @@
       </geometry>
       <origin xyz="0 0 0" rpy="0 0 0"/>
     </collision>
+    <!-- Matches model.sdf, which is what Gazebo actually simulates. This block
+         used to say 1.0 kg with a different tensor. -->
     <inertial>
-      <mass value="1.0"/>
-      <inertia ixx="0.0227" ixy="0" ixz="0" iyy="0.0852" iyz="0" izz="0.1041"/>
+      <mass value="5.0"/>
+      <inertia ixx="0.1135" ixy="0" ixz="0" iyy="0.426" iyz="0" izz="0.5205"/>
     </inertial>
   </link>
 

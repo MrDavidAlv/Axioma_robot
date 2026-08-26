@@ -177,7 +177,14 @@ Mobile robot, autonomous navigation, industrial logistics, trajectory planning, 
 <img src="images/URDF-TF.png" width="800"/>
 </div>
 
-Spatial transform tree: `map -> odom -> base_link -> sensors`. The `odom_to_tf` node publishes the `odom -> base_link` transform from Gazebo odometry. AMCL publishes `map -> odom` to correct odometric drift during navigation.
+Spatial transform tree: `map -> odom -> base_footprint -> base_link -> sensors`.
+
+`base_footprint` is the ground projection of `base_link` and the root of the
+URDF. It carries no inertia, which is what KDL needs from a root link, and it is
+the frame `odom_to_tf` attaches Gazebo odometry to: the DiffDrive plugin
+publishes planar odometry at z = 0, and that is the floor. `base_link` hangs
+2.58 mm below it, because the wheel centres sit at z = 0.04068 while the wheels
+have radius 0.0381. AMCL publishes `map -> odom` to correct odometric drift.
 
 ### SLAM System
 

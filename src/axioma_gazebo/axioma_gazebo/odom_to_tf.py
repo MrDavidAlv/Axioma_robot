@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Subscribe to /odom and publish TF odom -> base_link."""
+"""Subscribe to /odom and publish TF odom -> base_footprint."""
 
 import rclpy
 from rclpy.node import Node
@@ -25,10 +25,19 @@ class OdomToTf(Node):
 
     def _odom_cb(self, msg: Odometry):
         t = TransformStamped()
-        # Force canonical frame names regardless of what Gz sends
+        # Force canonical frame names regardless of what Gz sends.
+        #
+        # The child is base_footprint, not base_link. base_link is already the
+        # child of base_footprint through the fixed joint that comes from the
+        # URDF, and a frame can only have one parent. Publishing odom ->
+        # base_link here would fight robot_state_publisher for it.
+        #
+        # It is also the more honest frame: the DiffDrive plugin publishes
+        # planar odometry with z = 0, which is the ground, and base_link sits
+        # 2.58 mm below the ground on this robot.
         t.header.stamp = msg.header.stamp
         t.header.frame_id = 'odom'
-        t.child_frame_id = 'base_link'
+        t.child_frame_id = 'base_footprint'
         t.transform.translation.x = msg.pose.pose.position.x
         t.transform.translation.y = msg.pose.pose.position.y
         t.transform.translation.z = msg.pose.pose.position.z

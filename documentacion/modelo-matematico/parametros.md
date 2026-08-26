@@ -330,21 +330,30 @@ Estaba en lo cierto. Medido: el robot giraba el **65 %** de lo comandado. Se
 corrigió con fricción anisótropa más una vía efectiva calibrada; el error de
 guiñada quedó por debajo del 3 %. Procedimiento en `cinematica.md` §6.
 
-### 10.2 Masa del chasis — ⚠️ abierta
+### 10.2 Masa del chasis — ✅ resuelta
 
-- `model.sdf`: 5.0 kg ✅ (es la que usa Gazebo)
-- `axioma.urdf`: 1.0 kg ⚠️
+El URDF declaraba 1.0 kg y un tensor distinto del SDF. Ahora ambos llevan
+5.0 kg y $\mathrm{diag}(0.1135,\ 0.426,\ 0.5205)$.
 
-El URDF solo lo consume `robot_state_publisher`, que ignora las inercias, así
-que hoy no afecta a nada. Pasaría a importar si alguna herramienta calculara
-dinámica desde el URDF.
+### 10.3 Inercia en el link raíz — ✅ resuelta
 
-### 10.3 `imu_link` sin sensor — ⚠️ abierta
+`robot_state_publisher` avisaba en cada arranque:
+
+> The root link base_link has an inertia specified in the URDF, but KDL does not
+> support a root link with an inertia.
+
+Se añadió `base_footprint` como raíz sin `<inertial>`, con junta fija a
+`base_link` desplazada $-0.00258$ m en $z$. El aviso desaparece y de paso el
+árbol TF queda en la convención habitual. Ver `cinematica.md` §2.5.
+
+### 10.4 `imu_link` sin sensor — ⚠️ abierta
 
 El URDF declara `imu_link` en $(0.1, 0.1, 0.12)$, fuera de la envolvente del
-chasis, y el SDF no tiene ningún sensor IMU. Es un frame TF huérfano.
+chasis, y el SDF no tiene ningún sensor IMU: es un frame TF huérfano. Habría que
+decidir entre quitarlo o añadir un sensor IMU al SDF y fusionarlo con la
+odometría mediante `robot_localization`.
 
-### 10.4 Radio del mesh de rueda — ℹ️ informativa
+### 10.5 Radio del mesh de rueda — ℹ️ informativa
 
 Visual 0.0405 m frente a colisión 0.0381 m. Solo estético.
 

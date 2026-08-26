@@ -92,6 +92,38 @@ El radio circunscrito desde `base_link` es **0.1577 m**, que es lo que fija
 El LiDAR está en $(0, 0, 0.15)$: exactamente **encima** del origen de
 `base_link`, sin desplazamiento lateral ni longitudinal.
 
+### 2.5 `base_footprint`
+
+La raíz del URDF es `base_footprint`, la proyección de `base_link` sobre el
+suelo. Existe por dos motivos:
+
+1. **KDL no admite inercia en el link raíz.** Con `base_link` de raíz,
+   `robot_state_publisher` avisaba en cada arranque. `base_footprint` no lleva
+   `<inertial>`, así que el aviso desaparece.
+2. **Es el frame honesto para la odometría.** El plugin publica odometría plana
+   con $z = 0$, que es el suelo, no el origen de `base_link`.
+
+$$
+\mathbf{T}^{footprint}_{base} = \text{traslación}(0,\ 0,\ -0.00258)
+$$
+
+Los 2.58 mm no son arbitrarios: el centro de rueda está a $z = 0.04068$ y el
+radio es $0.0381$, así que con las ruedas apoyadas `base_link` queda
+$0.0381 - 0.04068 = -0.00258$ m **por debajo** del suelo. Gazebo reporta
+exactamente esa $z$ para el modelo.
+
+Árbol resultante:
+
+```
+map ──(AMCL)──► odom ──(odom_to_tf)──► base_footprint ──(URDF)──► base_link
+                                                                     ├─► base_scan
+                                                                     ├─► imu_link
+                                                                     └─► wheel_1..4
+```
+
+`robot_base_frame` en Nav2 y `base_frame` en SLAM Toolbox apuntan a
+`base_footprint`.
+
 ---
 
 ## 3. Modelo differential drive
@@ -298,7 +330,12 @@ comportamiento que un encoder en el robot real.
 
 El plugin publica en el tópico Gz `tf`, que **no** se puentea a ROS. En su lugar
 el nodo `odom_to_tf` (`axioma_gazebo`) se suscribe a `/odom` y publica la
-transformada `odom → base_link`, forzando los nombres canónicos de frame.
+transformada `odom → base_footprint`, forzando los nombres canónicos de frame.
+
+El hijo es `base_footprint` y no `base_link` porque `base_link` ya cuelga de
+`base_footprint` por la junta fija del URDF, y **un frame solo puede tener un
+padre**. Publicar `odom → base_link` aquí competiría con
+`robot_state_publisher` por él.
 
 ---
 

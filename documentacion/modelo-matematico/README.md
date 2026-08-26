@@ -38,7 +38,7 @@ skid-steer**. Cubre cinemática, control y parámetros físicos.
 | Símbolo | Descripción | Frame ROS 2 |
 |---------|-------------|-------------|
 | $\{W\}$ | Mundo | `map` / `odom` |
-| $\{R\}$ | Robot | `base_link` |
+| $\{R\}$ | Robot | `base_footprint` / `base_link` |
 
 ### Variables de estado
 

@@ -12,7 +12,7 @@ amcl:
     alpha3: 0.05  # Traslación por traslación (reducido de 0.2)
     alpha4: 0.05  # Traslación por rotación (reducido de 0.2)
     alpha5: 0.05  # Ruido adicional (reducido de 0.2)
-    base_frame_id: "base_link"
+    base_frame_id: "base_footprint"
     beam_skip_distance: 0.5
     beam_skip_error_threshold: 0.9
     beam_skip_threshold: 0.3
@@ -57,7 +57,7 @@ bt_navigator:
   ros__parameters:
     use_sim_time: True
     global_frame: map
-    robot_base_frame: base_link
+    robot_base_frame: base_footprint
     odom_topic: /odom
     default_nav_to_pose_bt_xml: $(find-pkg-share axioma_navigation)/behavior_trees/rover_bt.xml
     bt_loop_duration: 10
@@ -185,7 +185,7 @@ local_costmap:
       update_frequency: 5.0
       publish_frequency: 2.0
       global_frame: odom
-      robot_base_frame: base_link
+      robot_base_frame: base_footprint
       use_sim_time: True
       rolling_window: true
       width: 6
@@ -221,7 +221,7 @@ global_costmap:
       update_frequency: 1.0
       publish_frequency: 1.0
       global_frame: map
-      robot_base_frame: base_link
+      robot_base_frame: base_footprint
       use_sim_time: True
       # Circumscribed radius of the real meshes measured from base_link is
       # 0.158 m, so 0.15 left the footprint 8 mm short of the wheels.
@@ -288,7 +288,7 @@ behavior_server:
     wait:
       plugin: "nav2_behaviors/Wait"
     global_frame: odom
-    robot_base_frame: base_link
+    robot_base_frame: base_footprint
     transform_tolerance: 0.5
     use_sim_time: true
     simulate_ahead_time: 2.0
