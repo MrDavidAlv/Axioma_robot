@@ -187,7 +187,21 @@
     <origin xyz="0 0 0.15" rpy="0 0 0"/>
   </joint>
 
-  <!-- IMU Link -->
+  <!-- IMU Link
+
+       Reserved for a sensor the robot does not carry yet: model.sdf has no
+       <sensor type="imu">, so nothing publishes on this frame today and
+       robot_state_publisher is its only producer. It is kept on purpose, so
+       that mounting the real IMU is a matter of adding the sensor and an EKF
+       and not of reshaping the tree.
+
+       It used to sit at (0.1, 0.1, 0.12), which is off the chassis: the visual
+       mesh spans x in [-0.100, 0.096] and y in [-0.111, 0.086], so the frame
+       hung 4 mm past the front face and 14 mm past the left one. It now sits
+       on the chassis centreline, right above base_link's origin: with no
+       horizontal lever arm to the yaw axis, a turn in place shows up as yaw
+       rate alone and not as centripetal acceleration a filter would have to
+       model. -->
   <link name="imu_link">
     <inertial>
       <mass value="0.01"/>
@@ -198,7 +212,7 @@
   <joint name="imu_joint" type="fixed">
     <parent link="base_link"/>
     <child link="imu_link"/>
-    <origin xyz="0.1 0.1 0.12" rpy="0 0 0"/>
+    <origin xyz="0 0 0.12" rpy="0 0 0"/>
   </joint>
 
 </robot>

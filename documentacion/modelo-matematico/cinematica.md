@@ -122,7 +122,8 @@ map ──(AMCL)──► odom ──(odom_to_tf)──► base_footprint ──
 ```
 
 `robot_base_frame` en Nav2 y `base_frame` en SLAM Toolbox apuntan a
-`base_footprint`.
+`base_footprint`. `imu_link` es la excepción del árbol: existe como reserva de
+diseño y hoy no lo publica ningún sensor (ver `control.md` §8.1).
 
 ---
 

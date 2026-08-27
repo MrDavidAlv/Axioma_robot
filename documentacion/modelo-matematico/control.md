@@ -263,7 +263,14 @@ El plugin fija velocidades de junta directamente. En el robot real hacen falta:
 - Compensación de deslizamiento, o un EKF que fusione IMU y odometría
 
 El URDF ya declara `imu_link`, pero **no hay sensor IMU en el SDF**: ese frame
-está hoy sin usar.
+está hoy sin usar y se mantiene a propósito, como reserva para la IMU que el
+robot todavía no monta. Está en `(0, 0, 0.12)` respecto de `base_link`, sobre
+el eje de guiñada, para que al girar sobre sí mismo no aparezca aceleración
+centrípeta que el filtro tendría que descontar. Cuando exista el sensor hacen
+falta tres cosas: un `<sensor type="imu">` en `model.sdf`, el puente de `/imu`
+en `simulation.launch.py`, y un EKF de `robot_localization` que fusione
+`/odom` con `/imu` y pase a publicar `odom -> base_footprint` en lugar de
+`odom_to_tf`.
 
 ### 8.2 Sin límite de par
 
