@@ -10,7 +10,7 @@ find_package(ament_cmake REQUIRED)
 
 # Install directories
 install(
-  DIRECTORY launch config maps rviz
+  DIRECTORY launch config maps rviz behavior_trees
   DESTINATION share/${PROJECT_NAME}
 )
 

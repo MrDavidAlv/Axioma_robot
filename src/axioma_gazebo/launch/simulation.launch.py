@@ -20,7 +20,7 @@ def generate_launch_description():
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
 
     # Paths
-    world_file = os.path.join(pkg_axioma_gazebo, 'worlds', 'empty.world')
+    world_file = os.path.join(pkg_axioma_gazebo, 'worlds', 'office.world')
     urdf_file = os.path.join(pkg_axioma_description, 'urdf', 'axioma.urdf')
     sdf_file = os.path.join(pkg_axioma_gazebo, 'models', 'axioma_v2', 'model.sdf')
 

@@ -1,378 +1,414 @@
 # 🔄 Cinemática del Robot Axioma 4WD
 
-> **NOTA**: Este documento presenta el modelo cinemático de differential drive (4WD skid-steer). Todos los parámetros son valores REALES extraídos de `model.sdf` y plugins de Gazebo.
+> Todos los parámetros de este documento se leen de `model.sdf`, `axioma.urdf` y
+> `nav2_params.yaml`. El diagrama de `images/modelo-matematico.png` se genera con
+> `render_diagram.py`, que lee esos mismos archivos, así que no puede quedar
+> desfasado respecto a este texto.
 
 ## 1. Introducción
 
-El robot Axioma utiliza una configuración de **4 ruedas motrices con cinemática diferencial** (skid-steer). Aunque tiene 4 ruedas, se controla como un differential drive tradicional:
-- Las ruedas izquierdas (1 y 2) giran a la misma velocidad
-- Las ruedas derechas (3 y 4) giran a la misma velocidad
-- El control diferencial entre lados permite rotación
+El Axioma es un **skid-steer de 4 ruedas fijas**: no hay dirección, se gira
+haciendo girar los dos lados a distinta velocidad. Se controla como un
+differential drive:
+
+- Las ruedas izquierdas (W1 delantera, W2 trasera) giran solidarias
+- Las ruedas derechas (W3 trasera, W4 delantera) giran solidarias
+
+La diferencia entre lados produce la rotación. La sección 6 explica por qué esa
+equivalencia con un differential drive **no es exacta** y qué hay que hacer para
+que la odometría no se vaya.
 
 ---
 
-## 2. Geometría del Robot
+## 2. Geometría
 
-### 2.1 Configuración de Ruedas
+### 2.1 Posición de las ruedas
 
-El robot tiene **4 ruedas** distribuidas en configuración rectangular:
+Orígenes de junta en el frame `base_link` (`axioma.urdf`, idénticos en
+`model.sdf`):
 
-**Posiciones en Frame {R}** (extraídas de `model.sdf`):
+| Rueda | Nombre | $(x, y, z)$ [m] | Joint |
+|-------|--------|-----------------|-------|
+| W1 | Delantera izquierda | (0.06442, 0.07385, 0.04068) | `base_to_wheel1` |
+| W2 | Trasera izquierda | (-0.071224, 0.07385, 0.04068) | `base_to_wheel2` |
+| W3 | Trasera derecha | (-0.071224, -0.0625, 0.04068) | `base_to_wheel3` |
+| W4 | Delantera derecha | (0.064423, -0.0625, 0.04068) | `base_to_wheel4` |
 
-| Rueda | Nombre | Posición $(x, y, z)$ [m] | Joint |
-|-------|--------|--------------------------|-------|
-| 1 | Frontal Izquierda | (0.0644, 0.0738, 0.0407) | `base_to_wheel1` |
-| 2 | Trasera Izquierda | (-0.0712, 0.0738, 0.0407) | `base_to_wheel2` |
-| 3 | Trasera Derecha | (-0.0712, -0.0625, 0.0407) | `base_to_wheel3` |
-| 4 | Frontal Derecha | (0.0644, -0.0625, 0.0407) | `base_to_wheel4` |
+El robot **no es simétrico** respecto a `base_link`: las ruedas izquierdas están
+a $+0.07385$ m y las derechas a $-0.0625$ m. El eje de rotación real queda
+$5.7$ mm a la izquierda del origen del frame. Es despreciable frente a la
+resolución de los mapas (50 mm), pero conviene saberlo.
 
-**Fuente**: `model.sdf` líneas 38, 115, 192, 269
+### 2.2 Tres anchos de vía distintos
 
-### 2.2 Parámetros Geométricos
+Este es el punto donde es fácil equivocarse, porque hay **tres** números y solo
+uno sirve para las ecuaciones:
 
-**✅ Valores REALES de `model.sdf`**:
+| Concepto | Símbolo | Valor | Qué es |
+|----------|---------|-------|--------|
+| Vía entre juntas | $W_j$ | 0.13635 m | $y_{izq} - y_{der}$ de los orígenes de junta |
+| Vía de contacto | $W_c$ | 0.17635 m | Idem, pero en el plano de contacto del cilindro de colisión, desplazado $+0.02$ m en $y$ local |
+| **Vía efectiva** | $W$ | **0.1679 m** | La que va en las ecuaciones; calibrada, ver sección 6 |
 
-```python
-wheel_radius (r) = 0.0381 m        # líneas 72, 149, 226, 303
-wheel_diameter   = 0.0762 m        # línea 443 (2 × radius)
-wheel_separation = 0.1725 m        # línea 441
-wheel_base       = 0.135644 m      # Calculado: |0.0644-(-0.0712)| m
-wheel_width      = 0.03 m          # líneas 73, 150, 227, 304
-```
+$$
+W_j = 0.07385 - (-0.0625) = 0.13635 \text{ m}
+$$
+$$
+W_c = W_j + 2 \times 0.02 = 0.17635 \text{ m}
+$$
 
-### 2.3 Sistema de Coordenadas
+**Distancia entre ejes** (wheelbase):
+$$
+L = 0.06442 - (-0.071224) = 0.13564 \text{ m}
+$$
+
+### 2.3 Huella real
+
+Medida sobre los meshes visuales (`chasis.stl` + 4 × `llanta.stl` colocadas en
+sus juntas):
+
+$$
+\text{largo} = 0.2166 \text{ m}, \qquad
+\text{ancho} = 0.2220 \text{ m}, \qquad
+\text{alto} = 0.1548 \text{ m}
+$$
+
+El radio circunscrito desde `base_link` es **0.1577 m**, que es lo que fija
+`robot_radius: 0.16` en los costmaps.
+
+### 2.4 Sistema de coordenadas
 
 ```
         y (izquierda)
         ↑
-        |     W1 ●━━━━━● W4
-        |        |     |
-        |        | [R] |  (robot frame)
-        |        |     |
-        |     W2 ●━━━━━● W3
-        |
+        |     W2 ●━━━━━● W1        x adelante
+        |        |     |           y izquierda
+        |        | {R} |           z arriba
+        |        |     |           θ antihorario
+        |     W3 ●━━━━━● W4
         └─────────────────→ x (adelante)
-
-             θ (yaw, antihorario)
 ```
 
-**Distancias**:
-- Wheelbase (L): Distancia frontal-trasera = 0.1356 m
-- Track width (W): Distancia izquierda-derecha = 0.1725 m
+El LiDAR está en $(0, 0, 0.15)$: exactamente **encima** del origen de
+`base_link`, sin desplazamiento lateral ni longitudinal.
+
+### 2.5 `base_footprint`
+
+La raíz del URDF es `base_footprint`, la proyección de `base_link` sobre el
+suelo. Existe por dos motivos:
+
+1. **KDL no admite inercia en el link raíz.** Con `base_link` de raíz,
+   `robot_state_publisher` avisaba en cada arranque. `base_footprint` no lleva
+   `<inertial>`, así que el aviso desaparece.
+2. **Es el frame honesto para la odometría.** El plugin publica odometría plana
+   con $z = 0$, que es el suelo, no el origen de `base_link`.
+
+$$
+\mathbf{T}^{footprint}_{base} = \text{traslación}(0,\ 0,\ -0.00258)
+$$
+
+Los 2.58 mm no son arbitrarios: el centro de rueda está a $z = 0.04068$ y el
+radio es $0.0381$, así que con las ruedas apoyadas `base_link` queda
+$0.0381 - 0.04068 = -0.00258$ m **por debajo** del suelo. Gazebo reporta
+exactamente esa $z$ para el modelo.
+
+Árbol resultante:
+
+```
+map ──(AMCL)──► odom ──(odom_to_tf)──► base_footprint ──(URDF)──► base_link
+                                                                     ├─► base_scan
+                                                                     ├─► imu_link
+                                                                     └─► wheel_1..4
+```
+
+`robot_base_frame` en Nav2 y `base_frame` en SLAM Toolbox apuntan a
+`base_footprint`. `imu_link` es la excepción del árbol: existe como reserva de
+diseño y hoy no lo publica ningún sensor (ver `control.md` §8.1).
 
 ---
 
-## 3. Modelo Cinemático Differential Drive
+## 3. Modelo differential drive
 
-### 3.1 Velocidad del Robot
-
-El vector de velocidad del robot en su propio frame $\\{R\\}$ es:
+### 3.1 Twist del cuerpo
 
 $$
-\\mathbf{v}_R = \\begin{bmatrix} v \\\\ \\omega \\end{bmatrix}
+\mathbf{v}_R = \begin{bmatrix} v \\ \omega \end{bmatrix}
 $$
 
-Donde:
-- $v$: Velocidad lineal en el eje $x$ (adelante/atrás)
-- $\\omega$: Velocidad angular alrededor del eje $z$ (rotación)
+Un differential drive **no tiene movilidad lateral**: $v_y = 0$. Por eso
+`vy_samples` está en 1 y `max_vel_y` en 0 en la configuración del DWB.
 
-**NOTA**: Un differential drive NO tiene movilidad lateral ($v_y = 0$), solo puede moverse hacia adelante/atrás y rotar.
-
-### 3.2 Velocidad de las Ruedas
-
-Para un sistema de 4 ruedas agrupadas en 2 pares (izquierda/derecha):
-
-**Par izquierdo** (ruedas 1 y 2):
-$$
-\\omega_L = \\omega_1 = \\omega_2
-$$
-
-**Par derecho** (ruedas 3 y 4):
-$$
-\\omega_R = \\omega_3 = \\omega_4
-$$
-
-Donde $\\omega_i$ es la velocidad angular de la rueda $i$ en $rad/s$.
-
----
-
-## 4. Cinemática Directa
-
-### 4.1 De Velocidades de Rueda a Velocidad del Robot
-
-Dadas las velocidades angulares de las ruedas $\\omega_L$ y $\\omega_R$, la velocidad del robot se calcula como:
-
-**Velocidad lineal**:
-$$
-v = \\frac{r(\\omega_R + \\omega_L)}{2}
-$$
-
-**Velocidad angular**:
-$$
-\\omega = \\frac{r(\\omega_R - \\omega_L)}{W}
-$$
-
-Donde:
-- $r = 0.0381$ m (radio de rueda)
-- $W = 0.1725$ m (separación entre ruedas)
-
-### 4.2 Derivación
-
-La velocidad lineal del robot es el promedio de las velocidades lineales de las ruedas:
+### 3.2 Agrupación de ruedas
 
 $$
-v = \\frac{v_R + v_L}{2} = \\frac{r\\omega_R + r\\omega_L}{2} = \\frac{r(\\omega_R + \\omega_L)}{2}
-$$
-
-La velocidad angular se obtiene de la diferencia de velocidades entre los lados:
-
-$$
-\\omega = \\frac{v_R - v_L}{W} = \\frac{r\\omega_R - r\\omega_L}{W} = \\frac{r(\\omega_R - \\omega_L)}{W}
-$$
-
-### 4.3 Forma Matricial
-
-$$
-\\begin{bmatrix} v \\\\ \\omega \\end{bmatrix} =
-\\begin{bmatrix}
-\\frac{r}{2} & \\frac{r}{2} \\\\
-\\frac{r}{W} & -\\frac{r}{W}
-\\end{bmatrix}
-\\begin{bmatrix} \\omega_L \\\\ \\omega_R \\end{bmatrix}
-$$
-
-Con valores reales:
-$$
-\\begin{bmatrix} v \\\\ \\omega \\end{bmatrix} =
-\\begin{bmatrix}
-0.01905 & 0.01905 \\\\
-0.2209 & -0.2209
-\\end{bmatrix}
-\\begin{bmatrix} \\omega_L \\\\ \\omega_R \\end{bmatrix}
+\omega_L = \omega_{W1} = \omega_{W2}, \qquad
+\omega_R = \omega_{W3} = \omega_{W4}
 $$
 
 ---
 
-## 5. Cinemática Inversa
-
-### 5.1 De Velocidad del Robot a Velocidades de Rueda
-
-Dadas las velocidades deseadas del robot $(v, \\omega)$, las velocidades angulares de las ruedas se calculan como:
-
-**Ruedas izquierdas**:
-$$
-\\omega_L = \\frac{v - \\omega \\cdot \\frac{W}{2}}{r}
-$$
-
-**Ruedas derechas**:
-$$
-\\omega_R = \\frac{v + \\omega \\cdot \\frac{W}{2}}{r}
-$$
-
-### 5.2 Derivación
-
-Para que el robot se mueva con velocidad $v$ y rote con velocidad angular $\\omega$:
-
-- La rueda izquierda debe moverse a: $v_L = v - \\omega \\cdot \\frac{W}{2}$
-- La rueda derecha debe moverse a: $v_R = v + \\omega \\cdot \\frac{W}{2}$
-
-Convirtiendo velocidades lineales a angulares:
+## 4. Cinemática directa
 
 $$
-\\omega_L = \\frac{v_L}{r} = \\frac{v - \\omega \\cdot W/2}{r}
+v = \frac{r(\omega_R + \omega_L)}{2}, \qquad
+\omega = \frac{r(\omega_R - \omega_L)}{W}
 $$
 
-$$
-\\omega_R = \\frac{v_R}{r} = \\frac{v + \\omega \\cdot W/2}{r}
-$$
-
-### 5.3 Forma Matricial
+**Derivación**. La velocidad lineal es la media de los dos lados:
 
 $$
-\\begin{bmatrix} \\omega_L \\\\ \\omega_R \\end{bmatrix} =
-\\begin{bmatrix}
-\\frac{1}{r} & -\\frac{W}{2r} \\\\
-\\frac{1}{r} & \\frac{W}{2r}
-\\end{bmatrix}
-\\begin{bmatrix} v \\\\ \\omega \\end{bmatrix}
+v = \frac{v_R + v_L}{2} = \frac{r\omega_R + r\omega_L}{2}
 $$
 
-Con valores reales:
+y la angular sale de la diferencia repartida sobre la vía:
+
 $$
-\\begin{bmatrix} \\omega_L \\\\ \\omega_R \\end{bmatrix} =
-\\begin{bmatrix}
-26.247 & -2.263 \\\\
-26.247 & 2.263
-\\end{bmatrix}
-\\begin{bmatrix} v \\\\ \\omega \\end{bmatrix}
+\omega = \frac{v_R - v_L}{W} = \frac{r(\omega_R - \omega_L)}{W}
+$$
+
+**Forma matricial**, con $r = 0.0381$ m y $W = 0.1679$ m:
+
+$$
+\begin{bmatrix} v \\ \omega \end{bmatrix} =
+\begin{bmatrix} r/2 & r/2 \\ -r/W & r/W \end{bmatrix}
+\begin{bmatrix} \omega_L \\ \omega_R \end{bmatrix} =
+\begin{bmatrix} 0.01905 & 0.01905 \\ -0.22692 & 0.22692 \end{bmatrix}
+\begin{bmatrix} \omega_L \\ \omega_R \end{bmatrix}
 $$
 
 ---
 
-## 6. Odometría
-
-### 6.1 Integración de Pose
-
-La pose del robot en el frame mundial $\\{W\\}$ evoluciona según:
+## 5. Cinemática inversa
 
 $$
-\\begin{bmatrix} \\dot{x} \\\\ \\dot{y} \\\\ \\dot{\\theta} \\end{bmatrix}_W =
-\\begin{bmatrix}
-v \\cos\\theta \\\\
-v \\sin\\theta \\\\
-\\omega
-\\end{bmatrix}
+\omega_L = \frac{v - \omega W/2}{r}, \qquad
+\omega_R = \frac{v + \omega W/2}{r}
 $$
 
-### 6.2 Integración Numérica (Euler)
-
-Con período de muestreo $\\Delta t = 0.02$ s (50 Hz):
+**Forma matricial**:
 
 $$
-\\begin{aligned}
-x_{k+1} &= x_k + v \\cos\\theta_k \\cdot \\Delta t \\\\
-y_{k+1} &= y_k + v \\sin\\theta_k \\cdot \\Delta t \\\\
-\\theta_{k+1} &= \\theta_k + \\omega \\cdot \\Delta t
-\\end{aligned}
+\begin{bmatrix} \omega_L \\ \omega_R \end{bmatrix} =
+\begin{bmatrix} 1/r & -W/(2r) \\ 1/r & W/(2r) \end{bmatrix}
+\begin{bmatrix} v \\ \omega \end{bmatrix} =
+\begin{bmatrix} 26.2467 & -2.20341 \\ 26.2467 & 2.20341 \end{bmatrix}
+\begin{bmatrix} v \\ \omega \end{bmatrix}
 $$
 
-### 6.3 Implementación en Gazebo
+---
 
-**Plugin**: `libgazebo_ros_diff_drive.so` (`model.sdf:427-454`)
+## 6. Por qué $W$ no es una distancia medible
 
-**Configuración**:
+### 6.1 El problema
+
+Las ecuaciones anteriores describen un differential drive ideal: dos ruedas que
+solo ruedan. Un skid-steer de cuatro ruedas fijas **no puede girar sin arrastrar
+las ruedas lateralmente**, y ese arrastre se opone a la guiñada. El resultado es
+que el cuerpo gira **menos** de lo que predice el modelo ideal.
+
+El plugin usa la misma $W$ para dos cosas:
+
+1. Convertir $(v, \omega)$ del `/cmd_vel` en velocidades de rueda
+2. Integrar las velocidades de rueda para publicar `/odom`
+
+Si $W$ no coincide con la vía **efectiva** del vehículo, la odometría publica un
+giro que el robot no ha hecho. Y a diferencia del error de traslación, este
+error rota todo el marco: se acumula sin límite.
+
+### 6.2 Cuánto es
+
+Midiendo contra la pose real de Gazebo, con la vía geométrica original
+($W = 0.1725$ m) y fricción isótropa:
+
+| $\omega$ comandada | Giro real | Giro según odometría | Ratio |
+|--------------------|-----------|----------------------|-------|
+| 0.30 rad/s | 56.4° | 86.0° | 0.656 |
+| 0.50 rad/s | 115.6° | 172.4° | 0.670 |
+| 0.80 rad/s | 106.4° | 172.1° | 0.618 |
+| 1.00 rad/s | 101.9° | 172.4° | 0.591 |
+
+El robot giraba en torno al **65 %** de lo comandado, y el ratio además
+**dependía de la velocidad**. En línea recta la odometría era exacta.
+
+### 6.3 Las dos correcciones
+
+**a) Fricción anisótropa.** En `model.sdf` las ruedas tenían $\mu = \mu_2 = 1$.
+Con esa fricción isótropa el arrastre lateral resiste tanto como la rodadura.
+La corrección es indicar a ODE/DART la dirección de fricción:
+
 ```xml
-<update_rate>50</update_rate>
-<num_wheel_pairs>2</num_wheel_pairs>
-<publish_odom>true</publish_odom>
-<publish_odom_tf>true</publish_odom_tf>
-<odometry_frame>odom</odometry_frame>
-<robot_base_frame>base_link</robot_base_frame>
+<fdir1>0 0 1</fdir1>   <!-- eje del cilindro = eje de la rueda -->
+<mu>0.05</mu>          <!-- lateral: arrastre casi libre -->
+<mu2>1.0</mu2>         <!-- rodadura: tracción intacta -->
 ```
 
-**Fuente**: `model.sdf` líneas 439-451
+`fdir1` apunta al **eje de la rueda**, que es la única dirección del cuerpo que
+no rota cuando la rueda gira. Así $\mu$ queda como coeficiente lateral y
+$\mu_2$ como coeficiente de rodadura.
+
+> Bajar $\mu$ o $\mu_2$ **sin** declarar `fdir1` no sirve: el motor de física
+> elige una dirección arbitraria y lo único que se consigue es perder tracción.
+
+**b) Vía efectiva calibrada.** Con la fricción corregida queda un sesgo
+residual, y se elimina ajustando $W$:
+
+$$
+W = \frac{W_c}{k}, \qquad k = \frac{\omega_{real}}{\omega_{cmd}}\bigg|_{W = W_c} = 1.05
+$$
+$$
+W = \frac{0.17635}{1.05} = 0.1679 \text{ m}
+$$
+
+### 6.4 Resultado
+
+| $\omega$ comandada | Ratio antes | Ratio ahora |
+|--------------------|-------------|-------------|
+| 0.10 rad/s | 1.208 | 0.992 |
+| 0.20 rad/s | 1.082 | 0.992 |
+| 0.30 rad/s | 1.040 | 1.015 |
+| 0.50 rad/s | 1.064 | 0.973 |
+| 0.80 rad/s | 1.092 | 1.003 |
+| 1.00 rad/s | 1.026 | 0.994 |
+
+Error de guiñada **por debajo del 3 %** en todo el rango, ya sin dependencia de
+la velocidad, y traslación exacta a cualquier velocidad.
+
+> Nota para el robot físico: exactamente el mismo razonamiento aplica. La vía
+> efectiva de un skid-steer depende de la superficie, así que hay que calibrarla
+> haciendo girar el robot un número conocido de vueltas y comparando con la
+> odometría.
 
 ---
 
-## 7. Restricciones y Límites
+## 7. Odometría
 
-### 7.1 Límites Cinemáticos
-
-**✅ Valores REALES de `nav2_params.yaml`**:
+### 7.1 Integración de la pose
 
 $$
-\\begin{aligned}
-|v| &\\leq v_{max} = 0.26 \\text{ m/s} \\quad \\text{(línea 120)} \\\\
-|\\omega| &\\leq \\omega_{max} = 1.0 \\text{ rad/s} \\quad \\text{(línea 122)} \\\\
-|\\dot{v}| &\\leq a_{max} = 2.5 \\text{ m/s}^2 \\quad \\text{(línea 129)} \\\\
-|\\dot{\\omega}| &\\leq \\alpha_{max} = 3.2 \\text{ rad/s}^2 \\quad \\text{(línea 130)}
-\\end{aligned}
+\begin{bmatrix} \dot{x} \\ \dot{y} \\ \dot{\theta} \end{bmatrix}_W =
+\begin{bmatrix} v\cos\theta \\ v\sin\theta \\ \omega \end{bmatrix}
 $$
 
-### 7.2 Límites de Ruedas
+### 7.2 Integración numérica
 
-De la cinemática inversa, las velocidades angulares máximas de las ruedas son:
+Con $\Delta t = 0.02$ s (`odom_publish_frequency` = 50 Hz):
 
-**Movimiento recto** ($\\omega = 0$):
 $$
-\\omega_{wheel,max} = \\frac{v_{max}}{r} = \\frac{0.26}{0.0381} = 6.82 \\text{ rad/s}
-$$
-
-**Rotación pura** ($v = 0$):
-$$
-\\omega_{wheel,max} = \\frac{\\omega_{max} \\cdot W}{2r} = \\frac{1.0 \\times 0.1725}{2 \\times 0.0381} = 2.263 \\text{ rad/s}
+\begin{aligned}
+x_{k+1} &= x_k + v\cos\theta_k \, \Delta t \\
+y_{k+1} &= y_k + v\sin\theta_k \, \Delta t \\
+\theta_{k+1} &= \theta_k + \omega \, \Delta t
+\end{aligned}
 $$
 
-**Velocidad máxima combinada**:
+### 7.3 Implementación
+
+**Plugin**: `gz-sim-diff-drive-system` (Ignition Fortress). No es
+`libgazebo_ros_diff_drive.so`: ese es el de Gazebo Classic y no se usa aquí.
+
+```xml
+<plugin filename="gz-sim-diff-drive-system"
+        name="gz::sim::systems::DiffDrive">
+  <left_joint>base_to_wheel1</left_joint>
+  <left_joint>base_to_wheel2</left_joint>
+  <right_joint>base_to_wheel4</right_joint>
+  <right_joint>base_to_wheel3</right_joint>
+  <wheel_separation>0.1679</wheel_separation>
+  <wheel_radius>0.0381</wheel_radius>
+  <odom_publish_frequency>50</odom_publish_frequency>
+  <topic>cmd_vel</topic>
+  <odom_topic>odom</odom_topic>
+  <frame_id>odom</frame_id>
+  <child_frame_id>base_link</child_frame_id>
+</plugin>
+```
+
+El plugin integra desde las **posiciones reales de las juntas**, no desde el
+comando. Por eso, si una rueda patina, la odometría se lo cree: es el mismo
+comportamiento que un encoder en el robot real.
+
+### 7.4 TF
+
+El plugin publica en el tópico Gz `tf`, que **no** se puentea a ROS. En su lugar
+el nodo `odom_to_tf` (`axioma_gazebo`) se suscribe a `/odom` y publica la
+transformada `odom → base_footprint`, forzando los nombres canónicos de frame.
+
+El hijo es `base_footprint` y no `base_link` porque `base_link` ya cuelga de
+`base_footprint` por la junta fija del URDF, y **un frame solo puede tener un
+padre**. Publicar `odom → base_link` aquí competiría con
+`robot_state_publisher` por él.
+
+---
+
+## 8. Restricciones y límites
+
+### 8.1 Límites del cuerpo
+
+Los mismos en Nav2 y en el plugin:
+
 $$
-\\omega_{wheel,max} = \\frac{v_{max} + \\omega_{max} \\cdot W/2}{r} = \\frac{0.26 + 0.08625}{0.0381} = 9.09 \\text{ rad/s}
+|v| \leq 0.26 \text{ m/s}, \quad
+|\omega| \leq 1.0 \text{ rad/s}, \quad
+|\dot v| \leq 1.0 \text{ m/s}^2, \quad
+|\dot\omega| \leq 3.2 \text{ rad/s}^2
 $$
 
-### 7.3 Radio de Giro Mínimo
+### 8.2 Límites de rueda
 
-Para rotación en el lugar ($v = 0, \\omega \\neq 0$):
+Sustituyendo en la cinemática inversa:
+
+| Caso | Cálculo | Resultado |
+|------|---------|-----------|
+| Recto | $v_{max}/r$ | 6.82 rad/s (65.2 RPM) |
+| Giro puro | $\omega_{max} W/(2r)$ | 2.20 rad/s (21.0 RPM) |
+| Combinado | $(v_{max} + \omega_{max}W/2)/r$ | 9.03 rad/s |
+
+### 8.3 Radio de giro
+
 $$
-R_{min} = 0 \\text{ m}
+R_{min} = 0 \text{ m (giro sobre el eje)}, \qquad
+R\big|_{v_{max},\,\omega_{max}} = \frac{0.26}{1.0} = 0.26 \text{ m}
 $$
 
-El robot puede girar sobre su propio eje (giro de punto cero).
+### 8.4 Distancia de frenado
 
-Para movimiento a velocidad máxima con giro máximo:
 $$
-R = \\frac{v_{max}}{\\omega_{max}} = \\frac{0.26}{1.0} = 0.26 \\text{ m}
+d = \frac{v_{max}^2}{2|a_{min}|} = \frac{0.26^2}{2 \times 1.0} = 0.034 \text{ m}
 $$
 
 ---
 
-## 8. Implementación Computacional
-
-### 8.1 Pseudocódigo: Cinemática Inversa
+## 9. Implementación de referencia
 
 ```python
-def compute_wheel_velocities(v, omega):
-    \"\"\"
-    Calcula velocidades angulares de ruedas desde velocidad del robot
+R = 0.0381     # wheel_radius   (model.sdf)
+W = 0.1679     # wheel_separation efectiva (model.sdf, calibrada)
+V_MAX, W_MAX = 0.26, 1.0
 
-    Args:
-        v: Velocidad lineal [m/s]
-        omega: Velocidad angular [rad/s]
 
-    Returns:
-        omega_left, omega_right: Velocidades angulares [rad/s]
-    \"\"\"
-    r = 0.0381  # wheel_radius
-    W = 0.1725  # wheel_separation
+def inverse_kinematics(v, omega):
+    """(v, omega) del cuerpo -> velocidades angulares de rueda [rad/s]."""
+    v = max(-V_MAX, min(V_MAX, v))
+    omega = max(-W_MAX, min(W_MAX, omega))
+    return (v - omega * W / 2) / R, (v + omega * W / 2) / R
 
-    # Saturar comandos
-    v = clip(v, -0.26, 0.26)
-    omega = clip(omega, -1.0, 1.0)
 
-    # Cinemática inversa
-    omega_left = (v - omega * W/2) / r
-    omega_right = (v + omega * W/2) / r
-
-    return omega_left, omega_right
-```
-
-### 8.2 Pseudocódigo: Cinemática Directa
-
-```python
-def compute_robot_velocity(omega_left, omega_right):
-    \"\"\"
-    Calcula velocidad del robot desde velocidades de ruedas
-
-    Args:
-        omega_left: Velocidad angular rueda izquierda [rad/s]
-        omega_right: Velocidad angular rueda derecha [rad/s]
-
-    Returns:
-        v, omega: Velocidad lineal y angular del robot
-    \"\"\"
-    r = 0.0381  # wheel_radius
-    W = 0.1725  # wheel_separation
-
-    # Cinemática directa
-    v = r * (omega_right + omega_left) / 2
-    omega = r * (omega_right - omega_left) / W
-
-    return v, omega
+def forward_kinematics(w_left, w_right):
+    """Velocidades angulares de rueda -> (v, omega) del cuerpo."""
+    return R * (w_right + w_left) / 2, R * (w_right - w_left) / W
 ```
 
 ---
 
-## 9. Referencias
+## 10. Referencias
 
-**Implementación**:
-- Plugin Gazebo: `libgazebo_ros_diff_drive.so` (`model.sdf:427-454`)
-- Parámetros geométricos: `model.sdf:441-444`
-- Límites de velocidad: `nav2_params.yaml:120-130`
-
-**Documentación externa**:
-- [Gazebo Diff Drive Plugin](http://gazebosim.org/tutorials?tut=ros2_installing&cat=connect_ros)
+- Plugin: `src/axioma_gazebo/models/axioma_v2/model.sdf`
+- URDF: `src/axioma_description/urdf/axioma.urdf`
+- Límites Nav2: `src/axioma_navigation/config/nav2_params.yaml`
+- Diagrama: `documentacion/modelo-matematico/render_diagram.py`
 - [Differential Drive Kinematics](https://www.cs.columbia.edu/~allen/F17/NOTES/icckinematics.pdf)
+- [Gz Sim DiffDrive](https://gazebosim.org/api/sim/6/classignition_1_1gazebo_1_1systems_1_1DiffDrive.html)
 
 ---
 
 **Autor**: Mario David Alvarez Vallejo
-**Fecha**: 2025
-**Versión**: 1.0.0

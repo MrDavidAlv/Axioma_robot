@@ -1,452 +1,376 @@
 # 📏 Parámetros Físicos del Robot Axioma
 
-> **NOTA IMPORTANTE**: Este documento contiene SOLO valores REALES extraídos directamente del código fuente. Los parámetros están marcados con ✅ y la fuente exacta (archivo y línea).
+> Cada valor de este documento sale de un archivo del repositorio. Los que están
+> **calibrados** en vez de medidos llevan la etiqueta 🎯 y una referencia a cómo
+> se obtuvieron.
 
 ---
 
-## 1. Geometría del Robot
+## 1. Geometría
 
-### 1.1 Dimensiones de Ruedas
+### 1.1 Ruedas
 
 | Parámetro | Símbolo | Valor | Fuente |
 |-----------|---------|-------|--------|
-| Radio de rueda | $r$ | 0.0381 m | ✅ `model.sdf:72,149,226,303` |
-| Diámetro de rueda | $d$ | 0.0762 m | ✅ `model.sdf:443` |
-| Ancho de rueda | $w$ | 0.03 m | ✅ `model.sdf:73,150,227,304` |
+| Radio (colisión y plugin) | $r$ | 0.0381 m | `model.sdf` |
+| Radio del mesh visual | — | 0.0405 m | `llanta.stl` |
+| Ancho de colisión | $w$ | 0.030 m | `model.sdf` |
+| Desplazamiento de la colisión en $y$ local | — | +0.020 m | `model.sdf` |
 
-### 1.2 Dimensiones del Chasis
+> El mesh visual es 2.4 mm mayor que el cilindro de colisión. Solo afecta al
+> aspecto: la física y la odometría usan 0.0381 m.
+
+### 1.2 Chasis y vía
 
 | Parámetro | Símbolo | Valor | Fuente |
 |-----------|---------|-------|--------|
-| Separación de ruedas | $W$ | 0.1725 m | ✅ `model.sdf:441` |
-| Distancia entre ejes | $L$ | 0.1356 m | ✅ Calculado: \|0.0644-(-0.0712)\| |
-| Largo estimado | - | ~0.14 m | Estimado de posiciones |
-| Ancho estimado | - | ~0.14 m | Estimado de posiciones |
+| Vía entre juntas | $W_j$ | 0.13635 m | Orígenes de junta |
+| Vía de contacto | $W_c$ | 0.17635 m | $W_j + 2 \times 0.02$ |
+| **Vía efectiva (plugin)** | $W$ | **0.1679 m** 🎯 | `model.sdf`, ver `cinematica.md` §6 |
+| Distancia entre ejes | $L$ | 0.13564 m | Orígenes de junta |
+| Largo real | — | 0.2166 m | Meshes visuales |
+| Ancho real | — | 0.2220 m | Meshes visuales |
+| Alto real | — | 0.1548 m | Meshes visuales |
+| Radio circunscrito desde `base_link` | — | 0.1577 m | Meshes visuales |
 
-**NOTA**: El chasis usa meshes personalizados (chasis.dae), no hay dimensiones de box explícitas.
+`base_link` queda 2.58 mm por debajo del plano del suelo: el centro de rueda
+está a $z = 0.04068$ y el radio es 0.0381, así que $0.0381 - 0.04068 = -0.00258$.
 
-### 1.3 Posiciones de Ruedas
+### 1.3 Posiciones de rueda
 
-**Coordenadas en Frame `base_link`** (✅ `model.sdf`):
+| Rueda | $(x, y, z)$ [m] | Joint | rpy |
+|-------|-----------------|-------|-----|
+| W1 (DI) | (0.06442, 0.07385, 0.04068) | `base_to_wheel1` | (π, 0, π) |
+| W2 (TI) | (-0.071224, 0.07385, 0.04068) | `base_to_wheel2` | (π, 0, π) |
+| W3 (TD) | (-0.071224, -0.0625, 0.04068) | `base_to_wheel3` | (0, 0, π) |
+| W4 (DD) | (0.064423, -0.0625, 0.04068) | `base_to_wheel4` | (0, 0, π) |
 
-| Rueda | Posición $(x, y, z)$ [m] | Joint | Línea |
-|-------|---------------------------|-------|-------|
-| Wheel 1 (FL) | (0.06442, 0.07385, 0.04068) | `base_to_wheel1` | 38 |
-| Wheel 2 (RL) | (-0.071224, 0.07385, 0.04068) | `base_to_wheel2` | 115 |
-| Wheel 3 (RR) | (-0.071224, -0.0625, 0.04068) | `base_to_wheel3` | 192 |
-| Wheel 4 (FR) | (0.064423, -0.0625, 0.04068) | `base_to_wheel4` | 269 |
+Las rpy hacen que el eje declarado de cada junta (`0 1 0` a la izquierda,
+`0 -1 0` a la derecha) apunte al mismo $+y$ de `base_link`, de modo que giro
+positivo es avance en los cuatro casos.
 
 ---
 
-## 2. Propiedades Inerciales
+## 2. Propiedades inerciales
 
-### 2.1 Masa Total del Robot
+### 2.1 Masa
 
-| Componente | Cantidad | Masa Unitaria | Masa Total |
-|------------|----------|---------------|------------|
-| Base Link (chasis) | 1 | 5.0 kg | 5.0 kg |
-| Ruedas (wheel_1...4) | 4 | 0.1 kg | 0.4 kg |
-| LiDAR (base_scan) | 1 | 0.125 kg | 0.125 kg |
-| **TOTAL** | - | - | **5.525 kg** |
+| Componente | Cantidad | Masa unitaria | Total |
+|------------|----------|---------------|-------|
+| `base_link` (chasis) | 1 | 5.000 kg | 5.000 kg |
+| Ruedas | 4 | 0.100 kg | 0.400 kg |
+| LiDAR (`base_scan`) | 1 | 0.125 kg | 0.125 kg |
+| **TOTAL** | | | **5.525 kg** |
 
-**Fuentes**: `model.sdf:8, 55, 132, 209, 286, 348`
-
-### 2.2 Tensor de Inercia del Chasis
-
-**Base Link** (✅ Valores REALES de `model.sdf:6-17`):
+### 2.2 Tensores de inercia
 
 $$
-\\mathbf{I}_{base} = \\begin{bmatrix}
-0.1135 & 0 & 0 \\\\
-0 & 0.426 & 0 \\\\
-0 & 0 & 0.5205
-\\end{bmatrix} \\text{ kg·m}^2
+\mathbf{I}_{base} = \mathrm{diag}(0.1135,\ 0.4260,\ 0.5205) \text{ kg·m}^2
 $$
-
-```xml
-<link name="base_link">
-  <mass>5.0</mass>
-  <inertia>
-    <ixx>0.1135</ixx>
-    <iyy>0.426</iyy>
-    <izz>0.5205</izz>
-    <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
-  </inertia>
-</link>
-```
-
-### 2.3 Tensor de Inercia de Ruedas
-
-**Cada Rueda** (✅ Valores REALES de `model.sdf:55-65, 132-142, 209-219, 286-296`):
-
 $$
-\\mathbf{I}_{wheel} = \\begin{bmatrix}
-0.0029 & 0 & 0 \\\\
-0 & 0.0029 & 0 \\\\
-0 & 0 & 0.0056
-\\end{bmatrix} \\text{ kg·m}^2, \\quad m_{wheel} = 0.1 \\text{ kg}
+\mathbf{I}_{rueda} = \mathrm{diag}(0.0029,\ 0.0029,\ 0.0056) \text{ kg·m}^2
 $$
-
-```xml
-<link name="wheel_X">
-  <mass>0.1</mass>
-  <inertia>
-    <ixx>0.0029</ixx>
-    <iyy>0.0029</iyy>
-    <izz>0.0056</izz>
-  </inertia>
-</link>
-```
-
-### 2.4 Tensor de Inercia del LiDAR
-
-**LiDAR** (✅ Valores REALES de `model.sdf:348-358`):
-
 $$
-\\mathbf{I}_{lidar} = \\begin{bmatrix}
-0.001 & 0 & 0 \\\\
-0 & 0.001 & 0 \\\\
-0 & 0 & 0.001
-\\end{bmatrix} \\text{ kg·m}^2, \\quad m_{lidar} = 0.125 \\text{ kg}
+\mathbf{I}_{lidar} = \mathrm{diag}(0.0010,\ 0.0010,\ 0.0010) \text{ kg·m}^2
 $$
 
 ---
 
-## 3. Parámetros Dinámicos
+## 3. Parámetros dinámicos
 
-### 3.1 Fricción Rueda-Suelo
-
-**✅ Valores REALES de `model.sdf:77-96, 154-173, 231-250, 308-327`**:
+### 3.1 Fricción rueda–suelo
 
 ```xml
 <friction>
   <ode>
-    <mu>1.0</mu>
-    <mu2>1.0</mu2>
-    <slip1>0.0</slip1>
-    <slip2>0.0</slip2>
+    <fdir1>0 0 1</fdir1>   <!-- eje del cilindro = eje de la rueda -->
+    <mu>0.05</mu>          <!-- lateral (arrastre) -->
+    <mu2>1.0</mu2>         <!-- rodadura (tracción) -->
+    <slip1>0</slip1>
+    <slip2>0</slip2>
   </ode>
 </friction>
 ```
 
-| Parámetro | Valor | Descripción |
-|-----------|-------|-------------|
-| $\\mu_1$ | 1.0 | Coeficiente de fricción de Coulomb direccional |
-| $\\mu_2$ | 1.0 | Coeficiente de fricción de Coulomb lateral |
-| slip1 | 0.0 | Deslizamiento direccional |
-| slip2 | 0.0 | Deslizamiento lateral |
+| Parámetro | Valor | Qué es |
+|-----------|-------|--------|
+| `fdir1` | (0, 0, 1) | Primera dirección de fricción, en el frame de la colisión |
+| $\mu$ | 0.05 | Coeficiente **a lo largo de `fdir1`**: lateral |
+| $\mu_2$ | 1.0 | Coeficiente perpendicular: rodadura |
 
-**Fuerza de fricción máxima**:
-$$
-F_{friction,max} = \\mu \\cdot F_N = 1.0 \\times \\frac{mg}{4} = 1.0 \\times \\frac{5.525 \\times 9.81}{4} = 13.55 \\text{ N por rueda}
-$$
+Sin `fdir1` el motor de física elige una dirección arbitraria y $\mu$/$\mu_2$
+dejan de tener el significado que uno espera. Ver `cinematica.md` §6.3.
 
 **Aceleración máxima por fricción**:
 $$
-a_{friction,max} = \\mu \\cdot g = 1.0 \\times 9.81 = 9.81 \\text{ m/s}^2
+a_{\mu} = \mu_2 \, g = 9.81 \text{ m/s}^2
 $$
 
-### 3.2 Parámetros de Contacto (ODE)
-
-**✅ Valores REALES de `model.sdf:87-96`**:
-
-```xml
-<contact>
-  <ode>
-    <soft_cfm>0</soft_cfm>
-    <soft_erp>0.2</soft_erp>
-    <kp>1e+13</kp>
-    <kd>1.0</kd>
-    <max_vel>0.01</max_vel>
-    <min_depth>0.01</min_depth>
-  </ode>
-</contact>
-```
-
-| Parámetro | Valor | Descripción |
-|-----------|-------|-------------|
-| `soft_cfm` | 0 | Constraint Force Mixing (rigidez del contacto) |
-| `soft_erp` | 0.2 | Error Reduction Parameter (corrección de penetración) |
-| `kp` | $10^{13}$ | Rigidez del contacto (spring constant) |
-| `kd` | 1.0 | Amortiguamiento del contacto (damping) |
-| `max_vel` | 0.01 m/s | Velocidad máxima de penetración permitida |
-| `min_depth` | 0.01 m | Profundidad mínima de contacto para activación |
-
-### 3.3 Amortiguamiento de Joints
-
-**NOTA**: No hay parámetros de `<damping>` o `<friction>` activos en los joints de las ruedas. Los tags están comentados en el SDF.
-
----
-
-## 4. Límites Operacionales
-
-### 4.1 Límites Cinemáticos
-
-**✅ Valores REALES de `nav2_params.yaml`**:
-
-| Parámetro | Valor | Fuente |
-|-----------|-------|--------|
-| Velocidad lineal máxima | $v_{max} = 0.26$ m/s | `nav2_params.yaml:120` |
-| Velocidad angular máxima | $\\omega_{max} = 1.0$ rad/s | `nav2_params.yaml:122` |
-| Aceleración lineal máxima | $a_{max} = 2.5$ m/s² | `nav2_params.yaml:129` |
-| Aceleración angular máxima | $\\alpha_{max} = 3.2$ rad/s² | `nav2_params.yaml:130` |
-| Desaceleración lineal | $a_{min} = -2.5$ m/s² | `nav2_params.yaml:131` |
-| Desaceleración angular | $\\alpha_{min} = -3.2$ rad/s² | `nav2_params.yaml:132` |
-
-### 4.2 Límites de Torque
-
-**✅ Valores REALES de `model.sdf:446-447`**:
-
-```xml
-<max_wheel_torque>20</max_wheel_torque>
-<max_wheel_acceleration>1.0</max_wheel_acceleration>
-```
+### 3.2 Contacto (ODE)
 
 | Parámetro | Valor |
 |-----------|-------|
-| Torque máximo por rueda | 20 N·m |
-| Aceleración máxima de rueda (plugin) | 1.0 m/s² |
+| `soft_cfm` | 0 |
+| `soft_erp` | 0.2 |
+| `kp` | $10^{13}$ |
+| `kd` | 1.0 |
+| `max_vel` | 0.01 m/s |
+| `min_depth` | 0.01 m |
 
-### 4.3 Límites de Joints
+### 3.3 Motor de física
 
-**✅ Valores REALES de `model.sdf:43-46, 120-123, 197-200, 274-277`**:
+**dartsim** (por defecto en Ignition Fortress). La etiqueta `<physics type="ode">`
+del mundo es heredada y gz-sim la ignora; los parámetros `<ode>` de fricción sí
+se traducen.
+
+---
+
+## 4. Límites operacionales
+
+### 4.1 Cinemáticos
+
+| Parámetro | Valor | Impuesto en |
+|-----------|-------|-------------|
+| $v_{max}$ | 0.26 m/s | DWB, smoother, plugin |
+| $\omega_{max}$ | 1.0 rad/s | DWB, smoother, plugin |
+| $a_{max}$ | 1.0 m/s² | DWB, smoother, plugin |
+| $\alpha_{max}$ | 3.2 rad/s² | DWB, smoother, plugin |
+
+### 4.2 Etiquetas sin efecto
+
+`max_wheel_torque` y `max_wheel_acceleration` son de Gazebo Classic.
+`gz-sim-diff-drive-system` no las lee. Se sustituyeron por
+`max_linear_acceleration` / `max_angular_acceleration`, que sí lee. Detalle en
+`control.md` §2.3.
+
+### 4.3 Juntas
 
 ```xml
-<limit>
-  <lower>-1e+16</lower>
-  <upper>1e+16</upper>
-</limit>
+<limit><lower>-1e+16</lower><upper>1e+16</upper></limit>
 ```
 
-Las ruedas pueden girar infinitamente (tipo revolute sin límites).
+Giro libre, sin límite de par declarado.
 
 ---
 
 ## 5. Sensor LiDAR
 
-### 5.1 Especificaciones
+### 5.1 YDLIDAR X3 PRO
 
-**✅ Valores REALES de `model.sdf:346-426`**:
+| Parámetro | Valor |
+|-----------|-------|
+| Posición | $(0, 0, 0.15)$ m sobre `base_link` |
+| Frame | `base_scan` |
+| Tópico | `/scan` |
+| Alcance | 0.12 – 8.0 m |
+| Campo | 360°, de $-\pi$ a $+\pi - \Delta$ |
+| Muestras por vuelta | 400 |
+| Resolución angular | 0.900° |
+| Frecuencia de giro | 10 Hz (ajustable 5–10 Hz) |
+| Tasa de telemetría | 4 kHz |
+| Ruido | gaussiano, $\sigma = 0.015$ m |
+| Rechazo de luz ambiente | 40 klux |
 
-| Parámetro | Valor | Línea |
-|-----------|-------|-------|
-| Posición en robot | $(0, 0, 0.15)$ m desde `base_link` | 347 |
-| Tipo | Láser 2D planar | 351 |
-| Modelo | `hls_lfcd_lds` | 375 |
-| Muestras por barrido | 360 | 383 |
-| Resolución angular | 2.0° | 384 |
-| Ángulo mínimo | 0° (0 rad) | 385 |
-| Ángulo máximo | 360° (6.28 rad) | 386 |
-| Rango mínimo | 0.12 m | 24, 390 |
-| Rango máximo | 3.5 m | 391 |
-| Frecuencia | 20 Hz | 379 |
-| Ruido (media) | 0.0 | 395 |
-| Ruido (stddev) | 0.01 | 396 |
-
-**Frame**: `base_scan` (línea 413)
-**Tópico**: `/scan` (línea 403)
-
-### 5.2 Transformada del LiDAR
-
-Transformada de `base_link` → `base_scan`:
+La resolución **no es un dato fijo del sensor**: es de canal único, así que
 
 $$
-\\mathbf{T}_{scan}^{base} = \\begin{bmatrix}
-1 & 0 & 0 & 0 \\\\
-0 & 1 & 0 & 0 \\\\
-0 & 0 & 1 & 0.15 \\\\
-0 & 0 & 0 & 1
-\\end{bmatrix}
+\text{muestras por vuelta} = \frac{\text{tasa de telemetría}}{\text{frecuencia de giro}}
+= \frac{4000}{10} = 400
 $$
 
-El LiDAR está montado **15 cm arriba** del origen de `base_link`.
+| Frecuencia | Muestras/vuelta | Resolución |
+|------------|-----------------|------------|
+| 5 Hz | 800 | 0.450° |
+| 7 Hz | 571 | 0.630° |
+| **10 Hz** | **400** | **0.900°** |
+
+Si se cambia `<update_rate>` hay que cambiar `<samples>` en la misma proporción.
+El robot físico usa la misma frecuencia:
+`axioma_bringup/config/ydlidar_x3_pro.yaml` pide 10 Hz al cabezal.
+
+### 5.2 Transformada
+
+$$
+\mathbf{T}^{base}_{scan} =
+\begin{bmatrix} 1&0&0&0 \\ 0&1&0&0 \\ 0&0&1&0.15 \\ 0&0&0&1 \end{bmatrix}
+$$
+
+Sin rotación: el escaneo ya viene alineado con `base_link`.
 
 ---
 
-## 6. Parámetros de Navegación
+## 6. Navegación
 
 ### 6.1 Costmaps
 
-**Local Costmap** (✅ `nav2_params.yaml:171-209`):
+| | Local | Global |
+|---|---|---|
+| Frecuencia de actualización | 5.0 Hz | 1.0 Hz |
+| Tamaño | 6 × 6 m (rolling) | tamaño del mapa |
+| Resolución | 0.05 m | 0.05 m |
+| `robot_radius` | 0.16 m | 0.16 m |
+| `inflation_radius` | 0.25 m | 0.30 m |
+| `cost_scaling_factor` | 3.0 | 3.0 |
+| Capas | obstacle, inflation | static, obstacle, inflation |
+| Rango de trazado | 6.0 m | 8.0 m |
+
+El local traza hasta 6 m porque su ventana mide 6 × 6: más allá no hay celda que
+actualizar.
+
+### 6.2 Tolerancias
 
 ```yaml
-update_frequency: 5.0 Hz
-publish_frequency: 2.0 Hz
-width: 3 m
-height: 3 m
-resolution: 0.05 m/celda
-robot_radius: 0.15 m
-inflation_radius: 0.55 m
-cost_scaling_factor: 3.0
-```
-
-**Global Costmap** (✅ `nav2_params.yaml:211-244`):
-
-```yaml
-update_frequency: 1.0 Hz
-publish_frequency: 1.0 Hz
-resolution: 0.05 m/celda
-robot_radius: 0.15 m
-inflation_radius: 0.55 m
-cost_scaling_factor: 3.0
-```
-
-### 6.2 Tolerancias de Goal
-
-**✅ Valores REALES de `nav2_params.yaml:163-164`**:
-
-```yaml
-xy_goal_tolerance: 0.15 m
-yaw_goal_tolerance: 0.25 rad (≈14.3°)
+xy_goal_tolerance:  0.15 m
+yaw_goal_tolerance: 0.25 rad  (14.3°)
 ```
 
 ---
 
-## 7. Parámetros de SLAM
-
-### 7.1 SLAM Toolbox
-
-**✅ Valores REALES de `slam_params.yaml`**:
+## 7. SLAM
 
 ```yaml
-resolution: 0.05 m/celda
-max_laser_range: 3.5 m
-minimum_time_interval: 0.5 s
-minimum_travel_distance: 0.5 m
-minimum_travel_heading: 0.5 rad (≈28.6°)
+resolution: 0.05
+min_laser_range: 0.12          max_laser_range: 8.0
+minimum_time_interval: 0.2
+minimum_travel_distance: 0.2   minimum_travel_heading: 0.2
 
-Loop closure:
-  do_loop_closing: true
-  loop_search_maximum_distance: 3.0 m
-  loop_match_minimum_chain_size: 10
+do_loop_closing: true
+loop_search_maximum_distance: 2.0
+loop_match_maximum_variance_coarse: 0.5
+loop_match_minimum_response_fine: 0.5
+loop_match_minimum_chain_size: 10
 ```
 
-### 7.2 Mapa Existente
+Los umbrales de nodo nuevo (0.2 m / 0.2 rad) deben quedar **dentro** de la
+ventana de búsqueda del emparejador de scans (±0.25 m por
+`correlation_search_space_dimension`, ±20° por `coarse_search_angle_offset`).
+Con los 0.5/0.5 originales el emparejador no alcanzaba a cerrar la
+correspondencia y el grafo divergía.
 
-**✅ Valores REALES de `maps/mapa.yaml`**:
+### 7.1 Mapa
 
-```yaml
-Imagen: mapa.pgm
-Dimensiones: 215 × 231 píxeles
-Resolución: 0.05 m/píxel
-Origin: [-5.69, -5.14, 0] metros
-occupied_thresh: 0.65
-free_thresh: 0.25
-```
+| Parámetro | Valor |
+|-----------|-------|
+| Origen | (-7.01, -2.99) m |
+| Resolución | 0.05 m/píxel |
+| Umbrales | ocupado 0.65, libre 0.25 |
 
-**Área del mapa**:
-- Ancho: $215 \\times 0.05 = 10.75$ m
-- Alto: $231 \\times 0.05 = 11.55$ m
-- Área total: $\\approx 124$ m²
+Producido por SLAM Toolbox recorriendo `office.world`, no derivado
+analíticamente. `maps/ground_truth.pgm` sí es la planta exacta y sirve para
+puntuar el mapa de SLAM con `axioma_slam/scripts/score_map.py`.
 
 ---
 
-## 8. Cálculos Derivados
+## 8. Cálculos derivados
 
-### 8.1 Desempeño Cinemático
+### 8.1 Velocidades de rueda
 
-**Velocidad angular de rueda a máxima velocidad lineal**:
 $$
-\\omega_{wheel} = \\frac{v_{max}}{r} = \\frac{0.26}{0.0381} = 6.82 \\text{ rad/s} = 65.1 \\text{ RPM}
+\omega_{recto} = \frac{v_{max}}{r} = \frac{0.26}{0.0381} = 6.82 \text{ rad/s} = 65.2 \text{ RPM}
 $$
-
-**Velocidad angular de rueda en rotación pura**:
 $$
-\\omega_{wheel,rot} = \\frac{\\omega_{max} \\cdot W}{2r} = \\frac{1.0 \\times 0.1725}{2 \\times 0.0381} = 2.26 \\text{ rad/s} = 21.6 \\text{ RPM}
+\omega_{giro} = \frac{\omega_{max} W}{2r} = \frac{1.0 \times 0.1679}{2 \times 0.0381} = 2.20 \text{ rad/s} = 21.0 \text{ RPM}
 $$
-
-### 8.2 Distancia de Frenado
-
-Desde velocidad máxima con desaceleración máxima:
 $$
-d_{brake} = \\frac{v_{max}^2}{2 \\cdot |a_{min}|} = \\frac{0.26^2}{2 \\times 2.5} = 0.0135 \\text{ m} = 1.35 \\text{ cm}
+\omega_{comb} = \frac{v_{max} + \omega_{max} W/2}{r} = 9.03 \text{ rad/s}
 $$
 
-### 8.3 Radio de Giro Mínimo
+### 8.2 Frenado y giro
 
-En rotación pura ($v = 0$):
 $$
-R_{min} = 0 \\text{ m (giro de punto cero)}
+d_{frenado} = \frac{v_{max}^2}{2 |a_{min}|} = \frac{0.26^2}{2 \times 1.0} = 0.034 \text{ m}
 $$
-
-A velocidad máxima con rotación máxima:
 $$
-R = \\frac{v_{max}}{\\omega_{max}} = \\frac{0.26}{1.0} = 0.26 \\text{ m}
+R_{min} = 0 \text{ m}, \qquad
+R\big|_{max} = \frac{v_{max}}{\omega_{max}} = 0.26 \text{ m}
 $$
 
 ---
 
-## 9. Tabla Resumen de Parámetros
-
-### 9.1 Parámetros Geométricos
+## 9. Resumen
 
 ```python
-PARAMS_GEOMETRY = {
-    'wheel_radius': 0.0381,      # m (model.sdf:72)
-    'wheel_separation': 0.1725,  # m (model.sdf:441)
-    'wheel_base': 0.1356,        # m (calculado)
-    'total_mass': 5.525          # kg (suma de masas)
+GEOMETRY = {
+    'wheel_radius':      0.0381,    # m   model.sdf
+    'wheel_separation':  0.1679,    # m   model.sdf, calibrada
+    'contact_track':     0.17635,   # m   derivada de las juntas
+    'wheel_base':        0.13564,   # m   derivada de las juntas
+    'footprint':         (0.2166, 0.2220, 0.1548),   # m, meshes
+    'circumscribed_r':   0.1577,    # m,  robot_radius = 0.16
+    'total_mass':        5.525,     # kg
 }
-```
 
-### 9.2 Parámetros Cinemáticos
-
-```python
-PARAMS_KINEMATICS = {
-    'max_linear_velocity': 0.26,      # m/s (nav2_params:120)
-    'max_angular_velocity': 1.0,      # rad/s (nav2_params:122)
-    'max_linear_acceleration': 2.5,   # m/s² (nav2_params:129)
-    'max_angular_acceleration': 3.2,  # rad/s² (nav2_params:130)
-    'max_wheel_torque': 20.0          # N·m (model.sdf:446)
+KINEMATICS = {
+    'max_linear_velocity':      0.26,   # m/s
+    'max_angular_velocity':     1.0,    # rad/s
+    'max_linear_acceleration':  1.0,    # m/s^2
+    'max_angular_acceleration': 3.2,    # rad/s^2
 }
-```
 
-### 9.3 Parámetros de Control
-
-```python
-PARAMS_CONTROL = {
-    'gazebo_update_rate': 50.0,       # Hz (model.sdf:439)
-    'nav2_controller_freq': 20.0,     # Hz (nav2_params:114)
-    'velocity_smoother_freq': 20.0,   # Hz (nav2_params:307)
-    'costmap_update_freq': 5.0        # Hz (nav2_params:173)
+RATES = {
+    'odom_publish':   50.0,   # Hz   model.sdf
+    'controller':     20.0,   # Hz   nav2_params.yaml
+    'smoother':       20.0,   # Hz   nav2_params.yaml
+    'lidar':           7.0,   # Hz   model.sdf
+    'local_costmap':   5.0,   # Hz   nav2_params.yaml
 }
 ```
 
 ---
 
-## 10. Inconsistencias Detectadas
+## 10. Inconsistencias
 
-### 10.1 Masa del Base Link
+### 10.1 Vía de rueda — ✅ resuelta
 
-**SDF vs URDF**:
-- `model.sdf:8`: masa = 5.0 kg ✅ (usado en Gazebo)
-- `axioma.urdf:22`: masa = 1.0 kg ⚠️ (inconsistente)
+La versión anterior de este documento ya señalaba que `wheel_separation`
+(0.1725 m) no coincidía con la separación de las juntas (0.13635 m) y avisaba de
+que «puede causar deriva en odometría durante rotaciones».
 
-**Recomendación**: Unificar en 5.0 kg
+Estaba en lo cierto. Medido: el robot giraba el **65 %** de lo comandado. Se
+corrigió con fricción anisótropa más una vía efectiva calibrada; el error de
+guiñada quedó por debajo del 3 %. Procedimiento en `cinematica.md` §6.
 
-### 10.2 Wheel Separation
+### 10.2 Masa del chasis — ✅ resuelta
 
-**Plugin vs Geometría**:
-- `model.sdf:441`: wheel_separation = 0.1725 m ✅ (usado por plugin)
-- Posiciones reales: $y_{left} - y_{right} = 0.07385 - (-0.0625) = 0.13635$ m ⚠️
+El URDF declaraba 1.0 kg y un tensor distinto del SDF. Ahora ambos llevan
+5.0 kg y $\mathrm{diag}(0.1135,\ 0.426,\ 0.5205)$.
 
-**Diferencia**: 3.6 cm (21% de error)
+### 10.3 Inercia en el link raíz — ✅ resuelta
 
-**Impacto**: Puede causar deriva en odometría durante rotaciones.
+`robot_state_publisher` avisaba en cada arranque:
+
+> The root link base_link has an inertia specified in the URDF, but KDL does not
+> support a root link with an inertia.
+
+Se añadió `base_footprint` como raíz sin `<inertial>`, con junta fija a
+`base_link` desplazada $-0.00258$ m en $z$. El aviso desaparece y de paso el
+árbol TF queda en la convención habitual. Ver `cinematica.md` §2.5.
+
+### 10.4 `imu_link` sin sensor — ⚠️ abierta
+
+El URDF declara `imu_link` en $(0.1, 0.1, 0.12)$, fuera de la envolvente del
+chasis, y el SDF no tiene ningún sensor IMU: es un frame TF huérfano. Habría que
+decidir entre quitarlo o añadir un sensor IMU al SDF y fusionarlo con la
+odometría mediante `robot_localization`.
+
+### 10.5 Radio del mesh de rueda — ℹ️ informativa
+
+Visual 0.0405 m frente a colisión 0.0381 m. Solo estético.
 
 ---
 
-## 11. Referencias Cruzadas
+## 11. Referencias cruzadas
 
-- **Cinemática**: [cinematica.md](./cinematica.md) utiliza estos parámetros geométricos
-- **Control**: [control.md](./control.md) utiliza límites y frecuencias
+- **Cinemática**: [cinematica.md](./cinematica.md)
+- **Control**: [control.md](./control.md)
+- **Diagrama**: [render_diagram.py](./render_diagram.py) genera
+  `images/modelo-matematico.png` leyendo estos mismos archivos
 - **Archivos fuente**:
-  - Modelo principal: `src/axioma_description/models/axioma_v2/model.sdf`
-  - Parámetros Nav2: `src/axioma_navigation/config/nav2_params.yaml`
-  - Parámetros SLAM: `src/axioma_navigation/config/slam_params.yaml`
+  - `src/axioma_gazebo/models/axioma_v2/model.sdf`
+  - `src/axioma_description/urdf/axioma.urdf`
+  - `src/axioma_navigation/config/nav2_params.yaml`
+  - `src/axioma_slam/config/slam_params.yaml`
 
 ---
 
 **Autor**: Mario David Alvarez Vallejo
-**Fecha**: 2025
-**Versión**: 1.0.0

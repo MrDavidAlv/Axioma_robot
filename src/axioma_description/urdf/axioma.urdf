@@ -1,6 +1,23 @@
 <?xml version="1.0"?>
 <robot name="axioma_v2">
 
+  <!-- Base Footprint: the ground projection of base_link, and the root of the
+       tree. It carries no <inertial> on purpose: KDL cannot handle an inertia
+       on the root link, and robot_state_publisher warns about it on every
+       start when base_link is the root.
+
+       The 2.58 mm offset is not arbitrary. Wheel centres sit at z = 0.04068
+       and the wheels have radius 0.0381, so with the wheels on the ground
+       base_link ends up 0.0381 - 0.04068 = -0.00258 m below the floor. Gazebo
+       reports exactly that z for the spawned model. -->
+  <link name="base_footprint"/>
+
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 -0.00258" rpy="0 0 0"/>
+  </joint>
+
   <!-- Base Link -->
   <link name="base_link">
     <visual>
@@ -18,9 +35,11 @@
       </geometry>
       <origin xyz="0 0 0" rpy="0 0 0"/>
     </collision>
+    <!-- Matches model.sdf, which is what Gazebo actually simulates. This block
+         used to say 1.0 kg with a different tensor. -->
     <inertial>
-      <mass value="1.0"/>
-      <inertia ixx="0.0227" ixy="0" ixz="0" iyy="0.0852" iyz="0" izz="0.1041"/>
+      <mass value="5.0"/>
+      <inertia ixx="0.1135" ixy="0" ixz="0" iyy="0.426" iyz="0" izz="0.5205"/>
     </inertial>
   </link>
 
@@ -138,18 +157,21 @@
     <axis xyz="0 -1 0"/>
   </joint>
 
-  <!-- LIDAR Link -->
+  <!-- LIDAR Link: YDLIDAR X3 PRO (360 deg, 0.12-8 m, 4 kHz ranging, 5-10 Hz).
+       The frame is called base_scan because that is what the scans are stamped
+       with, and what AMCL, SLAM Toolbox and both costmaps look up. The
+       measurement plane sits at the link origin, 0.15 m above base_link. -->
   <link name="base_scan">
     <visual>
       <geometry>
-        <cylinder radius="0.035" length="0.030"/>
+        <cylinder radius="0.031" length="0.041"/>
       </geometry>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <material name="dark_rubber"/>
     </visual>
     <collision>
       <geometry>
-        <cylinder radius="0.035" length="0.030"/>
+        <cylinder radius="0.031" length="0.041"/>
       </geometry>
       <origin xyz="0 0 0" rpy="0 0 0"/>
     </collision>
@@ -165,7 +187,21 @@
     <origin xyz="0 0 0.15" rpy="0 0 0"/>
   </joint>
 
-  <!-- IMU Link -->
+  <!-- IMU Link
+
+       Reserved for a sensor the robot does not carry yet: model.sdf has no
+       <sensor type="imu">, so nothing publishes on this frame today and
+       robot_state_publisher is its only producer. It is kept on purpose, so
+       that mounting the real IMU is a matter of adding the sensor and an EKF
+       and not of reshaping the tree.
+
+       It used to sit at (0.1, 0.1, 0.12), which is off the chassis: the visual
+       mesh spans x in [-0.100, 0.096] and y in [-0.111, 0.086], so the frame
+       hung 4 mm past the front face and 14 mm past the left one. It now sits
+       on the chassis centreline, right above base_link's origin: with no
+       horizontal lever arm to the yaw axis, a turn in place shows up as yaw
+       rate alone and not as centripetal acceleration a filter would have to
+       model. -->
   <link name="imu_link">
     <inertial>
       <mass value="0.01"/>
@@ -176,7 +212,7 @@
   <joint name="imu_joint" type="fixed">
     <parent link="base_link"/>
     <child link="imu_link"/>
-    <origin xyz="0.1 0.1 0.12" rpy="0 0 0"/>
+    <origin xyz="0 0 0.12" rpy="0 0 0"/>
   </joint>
 
 </robot>

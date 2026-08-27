@@ -1,0 +1,49 @@
+# YDLIDAR X3 PRO driver parameters for the physical Axioma.
+#
+# ydlidar_ros2_driver ships several profiles and its launch file defaults to
+# params/ydlidar.yaml, which describes an X4: 128000 baud, dual channel, 9 kHz.
+# Starting an X3 PRO with that profile makes the driver wait for a device-info
+# reply the hardware never sends, and it logs "Failed to get scan" forever.
+#
+# Differences from the stock params/X3.yaml:
+#   sample_rate  3 -> 4     the PRO samples at 4 kHz, the plain X3 at 3 kHz
+#   range_max   12 -> 8     12 m is a driver-side clamp, the sensor reaches 8 m
+#   range_min  0.1 -> 0.12  matches the datasheet
+#   frame_id           ->   base_scan, which is the frame the URDF, AMCL, both
+#                           costmaps and SLAM Toolbox all look up. Leaving it at
+#                           laser_frame breaks every TF lookup on the real robot.
+#
+# Scan frequency and angular resolution are linked on this single-channel head:
+#   points per revolution = sample_rate / frequency = 4000 / 10 = 400  (0.90 deg)
+# If you change `frequency`, change <samples> in model.sdf to match, otherwise
+# the simulated scan is denser or sparser than the real one.
+
+ydlidar_ros2_driver_node:
+  ros__parameters:
+    port: /dev/ttyUSB0
+    frame_id: base_scan
+    ignore_array: ""
+
+    baudrate: 115200
+    lidar_type: 1               # TYPE_TRIANGLE
+    device_type: 0              # YDLIDAR_TYPE_SERIAL
+    isSingleChannel: true       # the X3 family is single channel
+    support_motor_dtr: true     # motor speed driven over DTR
+
+    intensity: false
+    intensity_bit: 0
+    sample_rate: 4              # kHz - X3 PRO
+    abnormal_check_count: 4
+    fixed_resolution: true
+    reversion: false
+    inverted: false
+    auto_reconnect: true
+
+    angle_min: -180.0
+    angle_max: 180.0
+    range_min: 0.12
+    range_max: 8.0
+    frequency: 10.0             # 5-10 Hz adjustable
+
+    invalid_range_is_inf: false
+    debug: false

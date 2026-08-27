@@ -2,7 +2,7 @@
 """Orchestrator: simulation + Nav2 + RViz."""
 import os
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, TimerAction
 from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
@@ -16,6 +16,7 @@ def generate_launch_description():
     rviz_config = os.path.join(pkg_axioma_navigation, 'rviz', 'navigation.rviz')
 
     use_sim_time = LaunchConfiguration('use_sim_time')
+    nav_start_delay = LaunchConfiguration('nav_start_delay')
 
     simulation = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -24,19 +25,16 @@ def generate_launch_description():
         launch_arguments={'use_sim_time': use_sim_time}.items()
     )
 
-    navigation = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_axioma_navigation, 'launch', 'navigation.launch.py')
-        ),
-        launch_arguments={'use_sim_time': use_sim_time}.items()
-    )
-
-    # Static TF map->odom (until AMCL initializes)
-    static_transform_publisher = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_map_to_odom',
-        arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom']
+    navigation = TimerAction(
+        period=nav_start_delay,
+        actions=[
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(pkg_axioma_navigation, 'launch', 'navigation.launch.py')
+                ),
+                launch_arguments={'use_sim_time': use_sim_time}.items()
+            )
+        ]
     )
 
     rviz = Node(
@@ -51,8 +49,9 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='true',
                               description='Use simulation clock'),
+        DeclareLaunchArgument('nav_start_delay', default_value='10.0',
+                              description='Delay before starting Nav2 to allow sim topics and TF to stabilize'),
         simulation,
-        static_transform_publisher,
         navigation,
         rviz,
     ])

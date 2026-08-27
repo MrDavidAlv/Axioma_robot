@@ -12,7 +12,7 @@ slam_toolbox:
     # ROS Parameters
     odom_frame: odom
     map_frame: map
-    base_frame: base_link
+    base_frame: base_footprint
     scan_topic: /scan
     use_map_saver: true
     mode: mapping
@@ -29,8 +29,9 @@ slam_toolbox:
     transform_publish_period: 0.02 #if 0 never publishes odometry
     map_update_interval: 5.0
     resolution: 0.05
-    max_laser_range: 3.5 #for rastering images
-    minimum_time_interval: 0.5
+    min_laser_range: 0.12
+    max_laser_range: 8.0   # YDLIDAR X3 upper range
+    minimum_time_interval: 0.2
     transform_timeout: 0.5
     tf_buffer_duration: 30.0
     stack_size_to_use: 40000000 #// program needs a larger stack size to serialize large maps
@@ -39,18 +40,25 @@ slam_toolbox:
     # General Parameters
     use_scan_matching: true
     use_scan_barycenter: true
-    minimum_travel_distance: 0.5
-    minimum_travel_heading: 0.5
+    minimum_travel_distance: 0.2
+    minimum_travel_heading: 0.2
     scan_buffer_size: 10
     scan_buffer_maximum_scan_distance: 10.0
     link_match_minimum_response_fine: 0.1
     link_scan_maximum_distance: 1.5
-    loop_search_maximum_distance: 3.0
+    # A false closure teleports the pose by roughly this radius. With pose error
+    # under 0.3 m, 2 m is ample for legitimate closures and it caps how far a
+    # wrong match can drag the graph.
+    loop_search_maximum_distance: 2.0
     do_loop_closing: true
     loop_match_minimum_chain_size: 10
-    loop_match_maximum_variance_coarse: 3.0
+    # 3.0 m^2 (about 1.7 m of standard deviation) accepted very uncertain loop
+    # closures. In a building with similar-looking rooms that feeds false
+    # constraints into the graph and the map comes out with duplicated walls and
+    # columns. 0.5 is still tolerant.
+    loop_match_maximum_variance_coarse: 0.5
     loop_match_minimum_response_coarse: 0.35
-    loop_match_minimum_response_fine: 0.45
+    loop_match_minimum_response_fine: 0.5
 
     # Correlation Parameters - Correlation Parameters
     correlation_search_space_dimension: 0.5

@@ -12,7 +12,7 @@ amcl:
     alpha3: 0.05  # Traslación por traslación (reducido de 0.2)
     alpha4: 0.05  # Traslación por rotación (reducido de 0.2)
     alpha5: 0.05  # Ruido adicional (reducido de 0.2)
-    base_frame_id: "base_link"
+    base_frame_id: "base_footprint"
     beam_skip_distance: 0.5
     beam_skip_error_threshold: 0.9
     beam_skip_threshold: 0.3
@@ -20,7 +20,7 @@ amcl:
     global_frame_id: "map"
     lambda_short: 0.1
     laser_likelihood_max_dist: 2.0
-    laser_max_range: 10.0
+    laser_max_range: 8.0
     laser_min_range: 0.12
     laser_model_type: "likelihood_field"
     max_beams: 120  # Aumentado de 60 para mejor precisión
@@ -45,16 +45,21 @@ amcl:
     z_short: 0.05
     scan_topic: scan
     # Parámetros adicionales para mejor localización
-    set_initial_pose: false
+    set_initial_pose: true
     always_reset_initial_pose: false
     first_map_only: false
+    initial_pose.x: 0.0
+    initial_pose.y: 0.0
+    initial_pose.z: 0.0
+    initial_pose.yaw: 0.0
 
 bt_navigator:
   ros__parameters:
     use_sim_time: True
     global_frame: map
-    robot_base_frame: base_link
+    robot_base_frame: base_footprint
     odom_topic: /odom
+    default_nav_to_pose_bt_xml: $(find-pkg-share axioma_navigation)/behavior_trees/rover_bt.xml
     bt_loop_duration: 10
     default_server_timeout: 20
     enable_groot_monitoring: True
@@ -119,7 +124,10 @@ controller_server:
 
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.5
+      # 0.10 m instead of the 0.5 default: the robot tops out at 0.26 m/s.
+      # A 30 s allowance made every stall cost half a minute before recovery
+      # fired; 10 s is plenty and reacts far sooner.
+      required_movement_radius: 0.10
       movement_time_allowance: 10.0
 
     general_goal_checker:
@@ -139,21 +147,24 @@ controller_server:
       min_speed_xy: 0.0
       max_speed_xy: 0.26
       min_speed_theta: 0.0
-      acc_lim_x: 2.5
+      # Consistent with max_wheel_acceleration=30 rad/s^2 in the DiffDrive
+      # plugin (0.0381 m radius => about 1.14 m/s^2 linear). DWB used to assume
+      # 2.5 m/s^2, more than twice what the robot can deliver.
+      acc_lim_x: 1.0
       acc_lim_y: 0.0
       acc_lim_theta: 3.2
-      decel_lim_x: -2.5
+      decel_lim_x: -1.0
       decel_lim_y: 0.0
       decel_lim_theta: -3.2
       vx_samples: 20
-      vy_samples: 5
+      vy_samples: 1
       vtheta_samples: 20
       sim_time: 1.7
       linear_granularity: 0.05
       angular_granularity: 0.025
-      transform_tolerance: 0.2
+      transform_tolerance: 0.5
       xy_goal_tolerance: 0.15
-      trans_stopped_velocity: 0.25
+      trans_stopped_velocity: 0.02
       short_circuit_trajectory_evaluation: True
       stateful: True
       critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]
@@ -174,27 +185,23 @@ local_costmap:
       update_frequency: 5.0
       publish_frequency: 2.0
       global_frame: odom
-      robot_base_frame: base_link
+      robot_base_frame: base_footprint
       use_sim_time: True
       rolling_window: true
-      width: 3
-      height: 3
+      width: 6
+      height: 6
       resolution: 0.05
-      robot_radius: 0.15
-      plugins: ["voxel_layer", "inflation_layer"]
+      # Circumscribed radius of the real meshes measured from base_link is
+      # 0.158 m, so 0.15 left the footprint 8 mm short of the wheels.
+      robot_radius: 0.16
+      plugins: ["obstacle_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        inflation_radius: 0.55
-      voxel_layer:
-        plugin: "nav2_costmap_2d::VoxelLayer"
+        inflation_radius: 0.25
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
-        publish_voxel_map: True
-        origin_z: 0.0
-        z_resolution: 0.05
-        z_voxels: 16
-        max_obstacle_height: 2.0
-        mark_threshold: 0
         observation_sources: scan
         scan:
           topic: /scan
@@ -202,9 +209,9 @@ local_costmap:
           clearing: True
           marking: True
           data_type: "LaserScan"
-          raytrace_max_range: 3.0
+          raytrace_max_range: 6.0
           raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
+          obstacle_max_range: 6.0
           obstacle_min_range: 0.0
       always_send_full_costmap: True
 
@@ -214,9 +221,11 @@ global_costmap:
       update_frequency: 1.0
       publish_frequency: 1.0
       global_frame: map
-      robot_base_frame: base_link
+      robot_base_frame: base_footprint
       use_sim_time: True
-      robot_radius: 0.15
+      # Circumscribed radius of the real meshes measured from base_link is
+      # 0.158 m, so 0.15 left the footprint 8 mm short of the wheels.
+      robot_radius: 0.16
       resolution: 0.05
       track_unknown_space: true
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
@@ -230,9 +239,9 @@ global_costmap:
           clearing: True
           marking: True
           data_type: "LaserScan"
-          raytrace_max_range: 3.0
+          raytrace_max_range: 8.0
           raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
+          obstacle_max_range: 8.0
           obstacle_min_range: 0.0
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
@@ -240,12 +249,12 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        inflation_radius: 0.55
+        inflation_radius: 0.30
       always_send_full_costmap: True
 
 planner_server:
   ros__parameters:
-    expected_planner_frequency: 20.0
+    expected_planner_frequency: 1.0
     use_sim_time: True
     planner_plugins: ["GridBased"]
     GridBased:
@@ -279,8 +288,8 @@ behavior_server:
     wait:
       plugin: "nav2_behaviors/Wait"
     global_frame: odom
-    robot_base_frame: base_link
-    transform_tolerance: 0.1
+    robot_base_frame: base_footprint
+    transform_tolerance: 0.5
     use_sim_time: true
     simulate_ahead_time: 2.0
     max_rotational_vel: 1.0
@@ -310,8 +319,10 @@ velocity_smoother:
     feedback: "OPEN_LOOP"
     max_velocity: [0.26, 0.0, 1.0]
     min_velocity: [-0.26, 0.0, -1.0]
-    max_accel: [2.5, 0.0, 3.2]
-    max_decel: [-2.5, 0.0, -3.2]
+    # Same envelope as DWB's acc_lim_x and the DiffDrive plugin; letting the
+    # smoother pass 2.5 m/s^2 only produced commands the robot could not track.
+    max_accel: [1.0, 0.0, 3.2]
+    max_decel: [-1.0, 0.0, -3.2]
     odom_topic: "odom"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
