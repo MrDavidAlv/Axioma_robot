@@ -1,5 +1,22 @@
 <?xml version="1.0"?>
-<robot name="axioma_v2">
+<robot name="axioma_v2" xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <!-- This description is xacro, not plain URDF, for exactly one reason: the
+       ZED 2i contributes eight frames whose offsets come from the camera's
+       geometry, and writing them out by hand as literal numbers would mean
+       re-deriving them by hand every time the camera moves on the chassis.
+       Everything else below is still ordinary URDF.
+
+       Anything that loads this file must run it through xacro first —
+       open(...).read() gets you a document full of ${...} that KDL rejects.
+       Both launch files in this repo already do (display.launch.py and
+       axioma_gazebo/launch/simulation.launch.py). -->
+  <!-- Relative, not $(find axioma_description)/urdf/..., so the file renders
+       straight out of the source tree before the package has ever been built.
+       xacro resolves a relative include against the including file, so this
+       keeps working unchanged from install/share as well. -->
+  <xacro:include filename="zed2i_macro.urdf.xacro"/>
+
 
   <!-- Base Footprint: the ground projection of base_link, and the root of the
        tree. It carries no <inertial> on purpose: KDL cannot handle an inertia
@@ -213,6 +230,35 @@
     <parent link="base_link"/>
     <child link="imu_link"/>
     <origin xyz="0 0 0.12" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ==================== ZED 2i ==================== -->
+
+  <!-- Stereo depth camera, mounted looking forward off the front face of the
+       chassis. Its job on this robot is not obstacle detection: it feeds the
+       EKF in axioma_perception with a visual-inertial pose, so that a rigid
+       4WD skid-steer with no suspension still knows where it is when the
+       wheels slip or the ground tilts. See axioma_perception/config/.
+
+       Mount pose. x = 0.098 puts the tripod screw at the front face of the
+       chassis (the visual mesh spans x in [-0.100, 0.096]); z = 0.10 clears
+       the deck and keeps the lenses below the LiDAR plane at z = 0.15, so the
+       camera body never shows up in the scan. rpy is zero — the 2i's base is
+       flat and the mount is not tilted, so the optical axis is horizontal.
+
+       The 2i is 175 mm wide on a 220 mm chassis, so it overhangs by about
+       25 mm per side. That is intentional and was checked in RViz: the stereo
+       baseline is fixed at 120 mm by the hardware, and narrowing the mount
+       would not change it.
+
+       Moving the camera means changing this joint and nothing else. The eight
+       frames below it, including the optical ones, follow automatically. -->
+  <xacro:zed2i_camera name="zed2i"/>
+
+  <joint name="zed2i_mount_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="zed2i_camera_link"/>
+    <origin xyz="0.098 0 0.10" rpy="0 0 0"/>
   </joint>
 
 </robot>

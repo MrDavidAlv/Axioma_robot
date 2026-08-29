@@ -13,6 +13,9 @@
   <depend>ros_gz_bridge</depend>
   <depend>robot_state_publisher</depend>
   <depend>axioma_description</depend>
+  <depend>axioma_perception</depend>
+  <depend>axioma_teleop_gui</depend>
+  <depend>rviz2</depend>
   <depend>xacro</depend>
   <depend>rclpy</depend>
   <depend>tf2_ros</depend>

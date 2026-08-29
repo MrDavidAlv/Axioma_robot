@@ -29,7 +29,6 @@ venv/
 pip-wheel-metadata/
 
 # Archivos generados por tests
-*.xml
 *.test
 coverage/
 

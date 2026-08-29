@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import xacro
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -13,15 +14,16 @@ def generate_launch_description():
     # Obtener el directorio del paquete
     pkg_axioma_description = get_package_share_directory('axioma_description')
 
-    # Ruta al archivo URDF
-    urdf_file = os.path.join(pkg_axioma_description, 'urdf', 'axioma.urdf')
+    # Ruta al archivo xacro
+    xacro_file = os.path.join(pkg_axioma_description, 'urdf', 'axioma.urdf.xacro')
 
     # Ruta al archivo de configuración de RViz2
     rviz_config_file = os.path.join(pkg_axioma_description, 'rviz', 'display.rviz')
 
-    # Leer el contenido del URDF
-    with open(urdf_file, 'r') as infp:
-        robot_desc = infp.read()
+    # Procesar el xacro. La descripcion dejo de ser URDF plano cuando se monto
+    # la ZED 2i: leer el archivo tal cual entrega un documento lleno de ${...}
+    # que KDL rechaza, y el RobotModel de RViz aparece vacio sin decir por que.
+    robot_desc = xacro.process_file(xacro_file).toxml()
 
     # Argumentos del launch
     use_sim_time_arg = DeclareLaunchArgument(

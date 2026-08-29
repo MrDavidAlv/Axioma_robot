@@ -1,0 +1,148 @@
+<?xml version="1.0"?>
+
+<!--
+  ZED 2i frame tree, vendored from Stereolabs' official description.
+
+  Source: zed-ros2-wrapper/zed_wrapper/urdf/zed_macro.urdf.xacro
+  Copyright 2025 Stereolabs, licensed under the Apache License 2.0
+  (http://www.apache.org/licenses/LICENSE-2.0), the same licence as this repo.
+
+  Three deliberate changes from upstream:
+
+  1. Only the zed2i branch is kept. Upstream carries fourteen camera models
+     behind <xacro:if> blocks and resolves the constants at parse time; Axioma
+     mounts one camera, so the constants are inlined below as literals and the
+     branching is gone. The values are copied verbatim from upstream's
+     ${model == 'zed2i'} block, and are the ones the ZED SDK itself assumes.
+
+  2. The mesh comes from this package, not from $(find zed_msgs)/meshes/. The
+     apt package ros-humble-zed-msgs ships the message definitions but not the
+     STL files, so upstream's path resolves to a file that is not there and
+     RViz silently draws nothing. The vendored copy was checked against the
+     ZED 2i datasheet before being committed: its bounding box is
+     175.3 x 43.1 x 30.3 mm against a spec of 175.25 x 43.1 x 30.25 mm, and it
+     is already in metres, so no <mesh scale> is needed.
+
+  3. The GNSS, magnetometer, barometer and temperature branches are dropped.
+     They belong to other models or to hardware Axioma does not use, and
+     upstream's mandatory *gnss_origin block parameter goes away with them —
+     that parameter is why a naive include of the upstream macro fails with
+     "Not enough blocks" even when GNSS is disabled.
+
+  The frame names are left exactly as upstream produces them, because the ZED
+  ROS 2 wrapper publishes and looks them up by those names. Do not rename them.
+-->
+
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <xacro:macro name="zed2i_camera" params="name:=zed2i">
+
+    <!-- Constants for the ZED 2i, from upstream's zed2i branch.
+           baseline         distance between the two optical centres
+           height           case height, used to lift the centre off the screw
+           screw_offset_x   mesh origin vs. the tripod screw hole
+           optical_offset_x optical centre vs. the case centre
+         bottom_slope is 0 for this model: unlike the ZED and ZED 2, the 2i's
+         base is flat, so there is no pitch between the screw and the case. -->
+    <xacro:property name="baseline"         value="0.12"/>
+    <xacro:property name="height"           value="0.03"/>
+    <xacro:property name="screw_offset_x"   value="-0.01"/>
+    <xacro:property name="optical_offset_x" value="-0.01"/>
+    <xacro:property name="M_PI"             value="3.1415926535897931"/>
+
+    <!-- Mounting point: the threaded tripod hole on the underside of the case.
+         This is the link a robot attaches to, and it is deliberately empty —
+         all the mass and geometry hang off ${name}_camera_center. -->
+    <link name="${name}_camera_link"/>
+
+    <!-- Case centre. Carries the visual, the collision and the 166 g of the
+         real camera (Stereolabs' figure for the 2i with its aluminium case). -->
+    <link name="${name}_camera_center">
+      <visual>
+        <origin xyz="${screw_offset_x} 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://axioma_description/meshes/visual/zed2i.stl"/>
+        </geometry>
+        <material name="zed_dark_grey">
+          <color rgba="0.25 0.25 0.25 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="${screw_offset_x} 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.0431 0.1753 0.0303"/>
+        </geometry>
+      </collision>
+      <!-- Solid-box tensor for a 175.3 x 43.1 x 30.3 mm bar of 0.166 kg. The
+           collision is a box rather than the mesh on purpose: the STL is
+           14360 triangles, and neither a convex hull of it nor the mesh itself
+           buys anything over a box for a body that never touches the ground. -->
+      <inertial>
+        <mass value="0.166"/>
+        <inertia ixx="0.000438" ixy="0" ixz="0"
+                 iyy="0.000039" iyz="0"
+                 izz="0.000451"/>
+      </inertial>
+    </link>
+
+    <joint name="${name}_camera_center_joint" type="fixed">
+      <parent link="${name}_camera_link"/>
+      <child link="${name}_camera_center"/>
+      <origin xyz="0 0 ${height/2}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Left eye. This is the ZED SDK's reference frame: positional tracking,
+         the depth map and the point cloud are all expressed relative to the
+         left camera, so this is the frame the EKF's pose input arrives in. -->
+    <link name="${name}_left_camera_frame"/>
+    <joint name="${name}_left_camera_joint" type="fixed">
+      <parent link="${name}_camera_center"/>
+      <child link="${name}_left_camera_frame"/>
+      <origin xyz="${optical_offset_x} ${baseline/2} 0" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Optical frames: the same point, turned from the robotics convention
+         (x forward, z up) into the vision one (z forward, x right, y down)
+         that image_pipeline, RViz's Camera display and every ROS point cloud
+         expect. Images and depth are stamped with these, not with the frames
+         above. -->
+    <link name="${name}_left_camera_frame_optical"/>
+    <joint name="${name}_left_camera_optical_joint" type="fixed">
+      <parent link="${name}_left_camera_frame"/>
+      <child link="${name}_left_camera_frame_optical"/>
+      <origin xyz="0 0 0" rpy="${-M_PI/2} 0 ${-M_PI/2}"/>
+    </joint>
+
+    <!-- Right eye. Nothing in Axioma's stack subscribes to it today: the ZED
+         SDK does the stereo matching on the GPU and publishes depth directly.
+         It is kept so the tree matches what the wrapper broadcasts. -->
+    <link name="${name}_right_camera_frame"/>
+    <joint name="${name}_right_camera_joint" type="fixed">
+      <parent link="${name}_camera_center"/>
+      <child link="${name}_right_camera_frame"/>
+      <origin xyz="${optical_offset_x} ${-baseline/2} 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="${name}_right_camera_frame_optical"/>
+    <joint name="${name}_right_camera_optical_joint" type="fixed">
+      <parent link="${name}_right_camera_frame"/>
+      <child link="${name}_right_camera_frame_optical"/>
+      <origin xyz="0 0 0" rpy="${-M_PI/2} 0 ${-M_PI/2}"/>
+    </joint>
+
+    <!-- The 2i's built-in IMU. Stereolabs places it near the left eye and the
+         SDK publishes it already time-synchronised with the images, which is
+         what makes the camera's own tracking visual-*inertial*. Axioma does
+         not fuse this one: the EKF takes roll and pitch from the chassis IMU
+         (see imu_link), which sits on the centreline with no lever arm to the
+         yaw axis. Declared so the frame the wrapper broadcasts exists here. -->
+    <link name="${name}_imu_link"/>
+    <joint name="${name}_imu_joint" type="fixed">
+      <parent link="${name}_left_camera_frame"/>
+      <child link="${name}_imu_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+  </xacro:macro>
+
+</robot>

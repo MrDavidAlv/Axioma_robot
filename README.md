@@ -86,8 +86,8 @@ touching the physical robot.
 What it covers, end to end:
 
 - A 3D simulation environment with static obstacles, matching a real workspace
-- Simulated navigation sensors — LiDAR, wheel encoders — wired the same way
-  the physical robot's are
+- Simulated navigation sensors — LiDAR, wheel encoders, IMU, ZED 2i stereo
+  depth camera — wired the same way the physical robot's are
 - Localisation (AMCL), differential/skid-steer control, and planning (Nav2)
   built on the standard ROS 2 navigation stack
 - Trajectory planning under the robot's actual kinematic and dynamic limits
@@ -109,6 +109,8 @@ What it covers, end to end:
 | **Keyboard Teleoperation** | Standard teleop_twist_keyboard support for manual control during mapping |
 | **Full Visualization** | RViz2 with dynamic costmaps, planned trajectories, and AMCL particle clouds |
 | **4WD Differential Robot** | Robust odometry from 1000 PPR encoders with skid-steering kinematics |
+| **Attitude-Aware Odometry** | EKF (robot_localization) fusing a chassis IMU so the pose follows slopes instead of assuming flat ground |
+| **Stereo Depth Camera** | ZED 2i on the front face, feeding visual-inertial pose to the EKF on the physical robot |
 | **Ignition Gazebo Simulation** | Gazebo Sim (Fortress) with the ros_gz bridge for all sensor and actuator interfaces |
 | **Configurable Parameters** | All Nav2, AMCL, SLAM, and DWB parameters tunable per application |
 | **Open Source** | BSD license, free for academic, research, and commercial use |
@@ -165,14 +167,23 @@ parameter with its source — in
 
 `base_footprint` is the ground projection of `base_link` and the root of the
 URDF. It carries no inertia, which is what KDL needs from a root link, and it
-is the frame `odom_to_tf` attaches Gazebo odometry to. `base_link` hangs
-2.58 mm below it, because the wheel centres sit at z = 0.04068 while the
-wheels have radius 0.0381.
+is the frame `odom` attaches to. `base_link` hangs 2.58 mm below it, because
+the wheel centres sit at z = 0.04068 while the wheels have radius 0.0381.
+
+`odom -> base_footprint` has exactly one publisher, chosen by the `use_ekf`
+argument of `simulation.launch.py`: the EKF in `axioma_perception` by default,
+or `odom_to_tf` — which republishes the wheel plugin's odometry verbatim — when
+`use_ekf:=false`. Never both; a frame gets one parent.
+
+The description is a **xacro**, not plain URDF, because the ZED 2i contributes
+eight frames whose offsets come from the camera's geometry. Anything loading it
+has to render it first; `open(...).read()` yields a document full of `${...}`
+that KDL rejects.
 
 ```mermaid
 graph TD
     map -->|AMCL, navigation only| odom
-    odom -->|odom_to_tf| base_footprint
+    odom -->|"EKF (axioma_perception)"| base_footprint
     base_footprint -->|URDF, fixed joint| base_link
     base_link --> base_scan
     base_link --> imu_link
@@ -180,19 +191,23 @@ graph TD
     base_link --> wheel_2
     base_link --> wheel_3
     base_link --> wheel_4
+    base_link --> zed2i_camera_link
+    zed2i_camera_link --> zed2i_camera_center
+    zed2i_camera_center --> zed2i_left_camera_frame
+    zed2i_camera_center --> zed2i_right_camera_frame
 ```
 
 ### Data flow
 
 SLAM Toolbox and AMCL both publish `map -> odom`, but never at the same time —
 mapping and navigation are separate launches. Everything below `odom` is
-always live, driven by `robot_state_publisher` and `odom_to_tf`.
+always live, driven by `robot_state_publisher` and the EKF.
 
 ```mermaid
 flowchart LR
-    GZ["Gazebo\ngz-sim-diff-drive-system"] -- "/odom, /joint_states, /scan" --> BR(("ros_gz_bridge"))
-    BR --> OTF["odom_to_tf"]
-    OTF -- "TF odom→base_footprint" --> TF[("TF tree")]
+    GZ["Gazebo\ngz-sim-diff-drive-system"] -- "/odom, /joint_states, /scan, /imu" --> BR(("ros_gz_bridge"))
+    BR -- "/odom, /imu" --> EKF["EKF\nrobot_localization"]
+    EKF -- "TF odom→base_footprint" --> TF[("TF tree")]
     RSP["robot_state_publisher"] -- "TF base_footprint→sensors" --> TF
 
     BR -- "/scan" --> SLAM["SLAM Toolbox"]
@@ -204,6 +219,43 @@ flowchart LR
     TF --> NAV["Nav2\nplanner + controller + BT"]
     NAV -- "/cmd_vel" --> GZ
 ```
+
+### Attitude-aware localization
+
+Axioma is a rigid 4WD skid-steer with no suspension. It cannot climb what a
+rocker-bogie rover climbs, and no amount of software changes that. What software
+*can* fix is the robot's idea of where it is while the ground is not flat.
+
+The wheel plugin integrates rotation on the assumption that the world is a
+plane, because a wheel encoder cannot tell "forward" from "up". `axioma_perception`
+answers that question with a sensor that can: the chassis IMU sees gravity, so
+roll and pitch are measured rather than assumed, and the EKF integrates the
+wheels' forward speed through that attitude instead of through an assumed-flat
+world.
+
+Measured in the terrain world, driving straight out of the warehouse, up the
+8.21° north ramp and onto the yard platform:
+
+| | ground truth | wheel odometry | EKF |
+|---|---|---|---|
+| z on the platform | 0.280 m | 0.000 m (**−280 mm**) | 0.286 m (+6 mm) |
+| pitch on the ramp | −8.21° | 0.00° | −8.21° |
+
+The raw odometry reports the distance travelled along the slope as horizontal
+distance and misses the climb entirely — it ends the run convinced the robot is
+still on the warehouse floor. On flat ground the two agree to within 3 mm over
+4 m, so the filter costs nothing where it is not needed.
+
+The split — attitude from the IMU, position and heading from the odometry
+source — is taken from [ros2_rover](https://github.com/mgonzs13/ros2_rover).
+Yaw is deliberately *not* taken from the IMU: there is no magnetometer on this
+robot, so heading drifts and correcting it stays SLAM Toolbox's and AMCL's job.
+
+On the physical robot the position source changes from the wheels to the
+ZED 2i's own positional tracking (`ekf_zed.yaml`), which is what the camera is
+mounted for — not obstacle detection. The wheels are dropped there entirely: a
+skid-steer turns by scrubbing its tyres sideways, and the encoders count that
+scrub as travel.
 
 SLAM Toolbox runs in asynchronous mode, building graph-based 2D occupancy grid
 maps in real time from LiDAR scans at 10 Hz (400 points per revolution) and
@@ -217,7 +269,26 @@ backup, wait).
 
 ## Simulation Environment
 
-The simulated world is a small office floor plan built entirely from primitive
+Two worlds, both generated by a script rather than hand-edited, and both
+emitting their own ground-truth occupancy grid from the same geometry list so
+the map and the world cannot drift apart:
+
+| World | Generator | What it is for |
+|---|---|---|
+| `office.world` | `generate_office_world.py` | Flat office floor plan. SLAM and Nav2 validation. |
+| `terrain.world` | `generate_terrain_world.py` | 18×10 m warehouse and raised yard, joined by two 8.21° ramps into a loop. The yard is asphalt / dirt / sand with genuinely different `<mu>`, not just different colours. |
+
+The terrain world is what `terrain_demo.launch.py` opens — Gazebo, RViz and the
+teleop GUI together, robot lined up with the north ramp so that holding forward
+climbs it:
+
+```bash
+ros2 launch axioma_gazebo terrain_demo.launch.py
+# and to see the same lap without the filter:
+ros2 launch axioma_gazebo terrain_demo.launch.py use_ekf:=false
+```
+
+The office world is a small office floor plan built entirely from primitive
 geometry (boxes and cylinders). It loads instantly and pulls nothing from Fuel,
 so the simulation starts identically on any machine.
 

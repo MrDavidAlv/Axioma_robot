@@ -1,0 +1,801 @@
+<sdf version='1.9'>
+  <world name='default'>
+
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-contact-system" name="gz::sim::systems::Contact"/>
+    <!-- IMU. Unlike the lidar and the camera, which the Sensors system above
+         already covers, an <sensor type="imu"> publishes nothing at all unless
+         this system is loaded in the world: the topic simply never appears and
+         Gazebo logs no warning about it. This world is the one where that
+         matters most — without the IMU there is no attitude, and without
+         attitude the ramps below are invisible to the odometry. -->
+    <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu"/>
+
+    <gravity>0 0 -9.8</gravity>
+    <physics name='default_physics' type='ode'>
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <scene>
+      <ambient>0.55 0.55 0.55 1</ambient>
+      <background>0.75 0.80 0.85 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <light type='directional' name='sun'>
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.4 0.3 -0.9</direction>
+    </light>
+
+    <!-- The warehouse floor. Cement, and the only surface in this world whose
+         friction the office world also had, which is what makes it the
+         reference the yard's three patches are compared against. -->
+    <model name='ground_plane'>
+      <static>true</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry>
+          <material>
+            <ambient>0.310 0.310 0.300 1</ambient>
+            <diffuse>0.620 0.620 0.600 1</diffuse>
+            <specular>0.05 0.05 0.05 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name='wall_west'>
+      <static>true</static>
+      <pose>-9.00000 0.00000 0.75000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>0.15000 10.15000 1.50000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>0.15000 10.15000 1.50000</size></box></geometry>
+          <material>
+            <ambient>0.425 0.425 0.410 1</ambient>
+            <diffuse>0.850 0.850 0.820 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='wall_east'>
+      <static>true</static>
+      <pose>9.00000 0.00000 0.75000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>0.15000 10.15000 1.50000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>0.15000 10.15000 1.50000</size></box></geometry>
+          <material>
+            <ambient>0.425 0.425 0.410 1</ambient>
+            <diffuse>0.850 0.850 0.820 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='wall_south'>
+      <static>true</static>
+      <pose>0.00000 -5.00000 0.75000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>18.15000 0.15000 1.50000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>18.15000 0.15000 1.50000</size></box></geometry>
+          <material>
+            <ambient>0.425 0.425 0.410 1</ambient>
+            <diffuse>0.850 0.850 0.820 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='wall_north'>
+      <static>true</static>
+      <pose>0.00000 5.00000 0.75000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>18.15000 0.15000 1.50000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>18.15000 0.15000 1.50000</size></box></geometry>
+          <material>
+            <ambient>0.425 0.425 0.410 1</ambient>
+            <diffuse>0.850 0.850 0.820 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='ramp_north'>
+      <static>true</static>
+      <pose>-0.09857 2.50000 0.14021 0 -0.143339 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>1.81865 1.60000 0.02000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>1.81865 1.60000 0.02000</size></box></geometry>
+          <material>
+            <ambient>0.310 0.310 0.300 1</ambient>
+            <diffuse>0.620 0.620 0.600 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='ramp_south'>
+      <static>true</static>
+      <pose>-0.09857 -2.50000 0.14021 0 -0.143339 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>1.81865 1.60000 0.02000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>1.81865 1.60000 0.02000</size></box></geometry>
+          <material>
+            <ambient>0.310 0.310 0.300 1</ambient>
+            <diffuse>0.620 0.620 0.600 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='yard_asphalt'>
+      <static>true</static>
+      <pose>2.15000 0.00000 0.14000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>2.70000 10.00000 0.28000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>0.9</mu>
+                <mu2>0.9</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>2.70000 10.00000 0.28000</size></box></geometry>
+          <material>
+            <ambient>0.120 0.120 0.130 1</ambient>
+            <diffuse>0.240 0.240 0.260 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='yard_dirt'>
+      <static>true</static>
+      <pose>4.85000 0.00000 0.14000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>2.70000 10.00000 0.28000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>0.55</mu>
+                <mu2>0.55</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>2.70000 10.00000 0.28000</size></box></geometry>
+          <material>
+            <ambient>0.225 0.165 0.100 1</ambient>
+            <diffuse>0.450 0.330 0.200 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='yard_sand'>
+      <static>true</static>
+      <pose>7.60000 0.00000 0.14000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>2.80000 10.00000 0.28000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>0.3</mu>
+                <mu2>0.3</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>2.80000 10.00000 0.28000</size></box></geometry>
+          <material>
+            <ambient>0.390 0.340 0.225 1</ambient>
+            <diffuse>0.780 0.680 0.450 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='yard_kerb_0'>
+      <static>true</static>
+      <pose>0.87500 -4.15000 0.53000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>0.15000 1.70000 0.50000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>0.15000 1.70000 0.50000</size></box></geometry>
+          <material>
+            <ambient>0.310 0.310 0.300 1</ambient>
+            <diffuse>0.620 0.620 0.600 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='yard_kerb_1'>
+      <static>true</static>
+      <pose>0.87500 0.00000 0.53000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>0.15000 3.40000 0.50000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>0.15000 3.40000 0.50000</size></box></geometry>
+          <material>
+            <ambient>0.310 0.310 0.300 1</ambient>
+            <diffuse>0.620 0.620 0.600 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='yard_kerb_2'>
+      <static>true</static>
+      <pose>0.87500 4.15000 0.53000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>0.15000 1.70000 0.50000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>0.15000 1.70000 0.50000</size></box></geometry>
+          <material>
+            <ambient>0.310 0.310 0.300 1</ambient>
+            <diffuse>0.620 0.620 0.600 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='rack_a'>
+      <static>true</static>
+      <pose>-6.80000 4.30000 0.90000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>4.00000 0.80000 1.80000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>4.00000 0.80000 1.80000</size></box></geometry>
+          <material>
+            <ambient>0.175 0.225 0.275 1</ambient>
+            <diffuse>0.350 0.450 0.550 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='rack_b'>
+      <static>true</static>
+      <pose>-5.40000 0.60000 0.75000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>5.60000 0.80000 1.50000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>5.60000 0.80000 1.50000</size></box></geometry>
+          <material>
+            <ambient>0.175 0.225 0.275 1</ambient>
+            <diffuse>0.350 0.450 0.550 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='rack_c'>
+      <static>true</static>
+      <pose>-7.30000 -4.20000 1.05000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>3.00000 0.80000 2.10000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>3.00000 0.80000 2.10000</size></box></geometry>
+          <material>
+            <ambient>0.175 0.225 0.275 1</ambient>
+            <diffuse>0.350 0.450 0.550 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='rack_d'>
+      <static>true</static>
+      <pose>-3.10000 -4.30000 0.60000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>2.20000 0.90000 1.20000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>2.20000 0.90000 1.20000</size></box></geometry>
+          <material>
+            <ambient>0.175 0.225 0.275 1</ambient>
+            <diffuse>0.350 0.450 0.550 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='pallet_1'>
+      <static>true</static>
+      <pose>-8.10000 -0.80000 0.20000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>1.20000 1.00000 0.40000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>1.20000 1.00000 0.40000</size></box></geometry>
+          <material>
+            <ambient>0.275 0.200 0.120 1</ambient>
+            <diffuse>0.550 0.400 0.240 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='pallet_2'>
+      <static>true</static>
+      <pose>-2.00000 -0.60000 0.30000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>1.00000 1.20000 0.60000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>1.00000 1.20000 0.60000</size></box></geometry>
+          <material>
+            <ambient>0.275 0.200 0.120 1</ambient>
+            <diffuse>0.550 0.400 0.240 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='crate_stack'>
+      <static>true</static>
+      <pose>-4.20000 -0.90000 0.55000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>0.90000 0.90000 1.10000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>0.90000 0.90000 1.10000</size></box></geometry>
+          <material>
+            <ambient>0.275 0.200 0.120 1</ambient>
+            <diffuse>0.550 0.400 0.240 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='yard_crate_a'>
+      <static>true</static>
+      <pose>4.40000 2.20000 0.63000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>1.10000 0.80000 0.70000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>1.10000 0.80000 0.70000</size></box></geometry>
+          <material>
+            <ambient>0.275 0.200 0.120 1</ambient>
+            <diffuse>0.550 0.400 0.240 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='yard_crate_b'>
+      <static>true</static>
+      <pose>7.40000 1.10000 0.78000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>0.90000 1.40000 1.00000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>0.90000 1.40000 1.00000</size></box></geometry>
+          <material>
+            <ambient>0.275 0.200 0.120 1</ambient>
+            <diffuse>0.550 0.400 0.240 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='yard_bin'>
+      <static>true</static>
+      <pose>6.60000 -2.60000 0.68000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>1.60000 0.70000 0.80000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>1.60000 0.70000 0.80000</size></box></geometry>
+          <material>
+            <ambient>0.175 0.225 0.275 1</ambient>
+            <diffuse>0.350 0.450 0.550 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='yard_shed'>
+      <static>true</static>
+      <pose>8.00000 3.60000 1.18000 0 0.000000 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><box><size>1.80000 2.20000 1.80000</size></box></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><box><size>1.80000 2.20000 1.80000</size></box></geometry>
+          <material>
+            <ambient>0.425 0.425 0.410 1</ambient>
+            <diffuse>0.850 0.850 0.820 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='col_a'>
+      <static>true</static>
+      <pose>-6.20000 -1.00000 1.20000 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><cylinder><radius>0.22</radius><length>2.4</length></cylinder></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.22</radius><length>2.4</length></cylinder></geometry>
+          <material>
+            <ambient>0.175 0.225 0.275 1</ambient>
+            <diffuse>0.350 0.450 0.550 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='col_b'>
+      <static>true</static>
+      <pose>-3.90000 4.20000 1.20000 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><cylinder><radius>0.28</radius><length>2.4</length></cylinder></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.28</radius><length>2.4</length></cylinder></geometry>
+          <material>
+            <ambient>0.175 0.225 0.275 1</ambient>
+            <diffuse>0.350 0.450 0.550 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='col_c'>
+      <static>true</static>
+      <pose>-1.90000 1.00000 1.20000 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><cylinder><radius>0.19</radius><length>2.4</length></cylinder></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.19</radius><length>2.4</length></cylinder></geometry>
+          <material>
+            <ambient>0.175 0.225 0.275 1</ambient>
+            <diffuse>0.350 0.450 0.550 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='drum_a'>
+      <static>true</static>
+      <pose>2.30000 3.40000 0.73000 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><cylinder><radius>0.29</radius><length>0.9</length></cylinder></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.29</radius><length>0.9</length></cylinder></geometry>
+          <material>
+            <ambient>0.350 0.225 0.075 1</ambient>
+            <diffuse>0.700 0.450 0.150 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='drum_b'>
+      <static>true</static>
+      <pose>2.90000 3.90000 0.73000 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><cylinder><radius>0.29</radius><length>0.9</length></cylinder></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.29</radius><length>0.9</length></cylinder></geometry>
+          <material>
+            <ambient>0.350 0.225 0.075 1</ambient>
+            <diffuse>0.700 0.450 0.150 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name='drum_c'>
+      <static>true</static>
+      <pose>5.10000 -3.90000 0.73000 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry><cylinder><radius>0.29</radius><length>0.9</length></cylinder></geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry><cylinder><radius>0.29</radius><length>0.9</length></cylinder></geometry>
+          <material>
+            <ambient>0.350 0.225 0.075 1</ambient>
+            <diffuse>0.700 0.450 0.150 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>
