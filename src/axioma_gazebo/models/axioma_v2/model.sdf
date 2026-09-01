@@ -432,6 +432,194 @@
       <child>base_scan</child>
     </joint>
 
+    <!-- ==================== IMU ==================== -->
+
+    <!-- The frame imu_link has existed in axioma.urdf.xacro for a while with
+         nothing publishing on it. This is the sensor that fills it.
+
+         Placement matches the URDF exactly: on the chassis centreline, 0.12 m
+         above base_link. With no horizontal lever arm to the yaw axis, a turn
+         in place produces yaw rate and no centripetal acceleration, so the EKF
+         does not have to model one.
+
+         Noise model: a consumer MEMS unit of the MPU-6050 class, which is what
+         a robot this size is realistically fitted with. The numbers come from
+         that datasheet's spectral densities integrated over a 100 Hz bandwidth:
+         gyro 0.005 dps/sqrt(Hz) -> 8.7e-4 rad/s, accel 400 ug/sqrt(Hz) ->
+         3.9e-2 m/s^2. The bias terms are the usual Gazebo turn-on-bias figures.
+
+         THIS IS AN ASSUMPTION, not a measurement of the part on the robot. If
+         the real IMU turns out to be a different class of device, these values
+         and the matching imu0 covariances in axioma_perception/config/*.yaml
+         have to move together — the EKF weights the IMU against wheel odometry
+         using exactly these numbers, so getting them wrong quietly biases the
+         fused roll and pitch rather than producing an obvious failure.
+
+         100 Hz because that is what the EKF runs its prediction step at; a
+         faster IMU would just be decimated, a slower one would starve it. -->
+    <link name="imu_link">
+      <pose>0 0 0.12 0 0 0</pose>
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>0.0001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.0001</iyy>
+          <iyz>0</iyz>
+          <izz>0.0001</izz>
+        </inertia>
+      </inertial>
+      <sensor name="axioma_imu" type="imu">
+        <pose>0 0 0 0 0 0</pose>
+        <always_on>true</always_on>
+        <update_rate>100</update_rate>
+        <topic>imu</topic>
+        <gz_frame_id>imu_link</gz_frame_id>
+        <imu>
+          <angular_velocity>
+            <x><noise type="gaussian"><mean>0.0</mean><stddev>8.7e-4</stddev><bias_mean>7.5e-6</bias_mean><bias_stddev>8.0e-7</bias_stddev></noise></x>
+            <y><noise type="gaussian"><mean>0.0</mean><stddev>8.7e-4</stddev><bias_mean>7.5e-6</bias_mean><bias_stddev>8.0e-7</bias_stddev></noise></y>
+            <z><noise type="gaussian"><mean>0.0</mean><stddev>8.7e-4</stddev><bias_mean>7.5e-6</bias_mean><bias_stddev>8.0e-7</bias_stddev></noise></z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x><noise type="gaussian"><mean>0.0</mean><stddev>3.9e-2</stddev><bias_mean>0.1</bias_mean><bias_stddev>1.0e-3</bias_stddev></noise></x>
+            <y><noise type="gaussian"><mean>0.0</mean><stddev>3.9e-2</stddev><bias_mean>0.1</bias_mean><bias_stddev>1.0e-3</bias_stddev></noise></y>
+            <z><noise type="gaussian"><mean>0.0</mean><stddev>3.9e-2</stddev><bias_mean>0.1</bias_mean><bias_stddev>1.0e-3</bias_stddev></noise></z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+    </link>
+
+    <joint name="imu_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>imu_link</child>
+    </joint>
+
+    <!-- ==================== ZED 2i ==================== -->
+
+    <!-- Stereo depth camera on the front face. Pose, mass and geometry are the
+         same ones axioma.urdf.xacro derives from the zed2i macro, restated here
+         because Gazebo simulates this file and not the URDF: the link centre is
+         the camera case centre at (0.098, 0, 0.115) in base_link, and the mesh
+         sits 10 mm behind it because the URDF measures from the tripod screw.
+
+         166 g at 98 mm forward and 115 mm up is a real change to a 5 kg robot:
+         it moves the centre of mass forward and raises it. That is the point of
+         giving the camera its own link with its own inertia instead of ignoring
+         it — the tipping behaviour on the ramp in the terrain world depends on
+         it, and pretending the camera is massless would flatter the result.
+
+         What this sensor is NOT: the source of the EKF's pose. On the real
+         robot that comes from the ZED SDK's positional tracking, which runs on
+         the GPU inside the camera driver and has no equivalent in Gazebo. In
+         simulation the EKF falls back to wheel odometry for position and takes
+         only roll and pitch from the IMU — see axioma_perception/config/, which
+         carries one config per case and documents the split. This sensor exists
+         so that the simulated robot has the camera the URDF says it has, and so
+         depth and point cloud can be inspected in RViz.
+
+         Optics: the 2.1 mm lens is 110 deg horizontal, and its depth range is
+         0.3-20 m. Gazebo renders a pinhole, so a 110 deg horizontal FOV at 16:9
+         comes out at about 77 deg vertical against the real camera's 70 deg —
+         the real lens is not a pinhole and the discrepancy is not worth faking.
+
+         640x360 at 15 Hz, not the HD720 at 30 Hz the real camera runs. The
+         aspect ratio and the FOV are what matter for geometry; the extra pixels
+         only cost GPU time in a scene that already renders a lidar. -->
+    <link name="zed2i_camera_center">
+      <pose>0.098 0 0.115 0 0 0</pose>
+      <inertial>
+        <mass>0.166</mass>
+        <inertia>
+          <ixx>0.000438</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.000039</iyy>
+          <iyz>0</iyz>
+          <izz>0.000451</izz>
+        </inertia>
+      </inertial>
+      <collision name="zed2i_collision">
+        <pose>-0.01 0 0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.0431 0.1753 0.0303</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="zed2i_visual">
+        <pose>-0.01 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://axioma_v2/meshes/visual/zed2i.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <diffuse>0.25 0.25 0.25 1</diffuse>
+          <ambient>0.08 0.08 0.08 1</ambient>
+          <specular>0.3 0.3 0.3 1</specular>
+          <emissive>0 0 0 1</emissive>
+        </material>
+      </visual>
+      <!-- Posed at the left eye, because that is the frame the ZED SDK
+           expresses depth, point cloud and tracking in. Relative to this link
+           that is (-0.01, +0.06, 0): half the 120 mm stereo baseline to the
+           left, and the 10 mm optical offset back.
+
+           gz_frame_id names the optical child of this link, because that is
+           what the sensor's three ROS outputs actually are: camera_info
+           carries a pinhole K (fx=fy=224.07, cx=320, cy=180 for the 110 deg
+           FOV below) and the depth image measures along the optical axis.
+           Both are meaningless in an x-forward frame.
+
+           The one output that disagrees is gz-sensors' own point cloud: it is
+           emitted in the sensor's Gazebo axes, x forward, measured on Fortress
+           6.18 (x carried the range, 0.30-12 m, matching the clip below, and z
+           was up). One gz_frame_id cannot label both conventions, so the cloud
+           is not bridged at all - simulation.launch.py reprojects the depth
+           image instead, which lands in the optical frame like every other
+           ROS RGB-D cloud. Bridging the raw cloud and stamping it optical is
+           what laid it on its side in RViz, rotated 90 degrees. -->
+      <sensor name="zed2i" type="rgbd_camera">
+        <pose>-0.01 0.06 0 0 0 0</pose>
+        <always_on>true</always_on>
+        <visualize>false</visualize>
+        <update_rate>15</update_rate>
+        <topic>zed2i</topic>
+        <gz_frame_id>zed2i_left_camera_frame_optical</gz_frame_id>
+        <camera>
+          <horizontal_fov>1.919862</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>360</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.3</near>
+            <far>20.0</far>
+          </clip>
+          <depth_camera>
+            <clip>
+              <near>0.3</near>
+              <far>20.0</far>
+            </clip>
+          </depth_camera>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.007</stddev>
+          </noise>
+        </camera>
+      </sensor>
+    </link>
+
+    <joint name="zed2i_mount_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>zed2i_camera_center</child>
+    </joint>
+
     <!-- ==================== GZ-SIM PLUGINS ==================== -->
 
     <!-- Differential drive (skid-steer 4WD) -->

@@ -1,25 +1,25 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>axioma_bringup</name>
+  <name>axioma_slam</name>
   <version>1.0.0</version>
-  <description>Orchestrator launch files for Axioma robot</description>
+  <description>Axioma SLAM configuration and launch files</description>
   <maintainer email="ing.marioalvarezvallejo@gmail.com">Mario David Alvarez Vallejo</maintainer>
   <license>Apache-2.0</license>
 
-  <exec_depend>axioma_gazebo</exec_depend>
-  <exec_depend>axioma_slam</exec_depend>
-  <exec_depend>axioma_navigation</exec_depend>
-  <exec_depend>rviz2</exec_depend>
-  <!-- vslam_bringup brings up the teleop GUI: visual SLAM needs motion -->
-  <exec_depend>axioma_teleop_gui</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>slam_toolbox</exec_depend>
+  <!-- RGB-D visual SLAM, vslam.launch.py -->
+  <exec_depend>rtabmap_odom</exec_depend>
+  <exec_depend>rtabmap_slam</exec_depend>
+  <exec_depend>rtabmap_viz</exec_depend>
+  <exec_depend>nav2_map_server</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
-
   <export>
     <build_type>ament_python</build_type>
   </export>

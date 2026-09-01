@@ -2,21 +2,28 @@
 """Render the kinematic-model figure straight from the robot's own files.
 
 Everything on the diagram - geometry, limits, sensor spec - is read from
-``model.sdf``, ``axioma.urdf``, ``nav2_params.yaml`` and ``slam_params.yaml``
-at render time, and the robot is drawn from its actual visual meshes rather
-than sketched. Change a parameter and re-run this; the figure cannot go stale.
+``model.sdf``, ``axioma.urdf.xacro``, ``nav2_params.yaml`` and
+``slam_params.yaml`` at render time, and the robot is drawn from its actual
+visual meshes rather than sketched. Change a parameter and re-run this; the
+figure cannot go stale.
 
-    python3 documentacion/modelo-matematico/render_diagram.py [out.png]
+The description is xacro, so this needs the ``xacro`` module on the path.
+Source the ROS environment first:
 
-Default output: images/modelo-matematico.png
+    source /opt/ros/humble/setup.bash
+    python3 docs/mathematical-model/render_diagram.py [out.png]
+
+Default output: images/mathematical-model.png
 """
 import math
 import os
 import re
 import struct
 import sys
+import xml.etree.ElementTree as ET
 
 import numpy as np
+import xacro
 import yaml
 import matplotlib
 matplotlib.use('Agg')
@@ -38,7 +45,11 @@ GREEN = '#2d6a4f'
 # --------------------------------------------------------------- sources ----
 def read_sources():
     sdf = open(os.path.join(SRC, 'axioma_gazebo/models/axioma_v2/model.sdf')).read()
-    urdf = open(os.path.join(SRC, 'axioma_description/urdf/axioma.urdf')).read()
+    # Rendered, not read raw. The wheel joints this parses are still literals
+    # in the xacro source, but going through xacro means the figure keeps
+    # matching the robot even if they stop being literals later.
+    urdf = xacro.process_file(
+        os.path.join(SRC, 'axioma_description/urdf/axioma.urdf.xacro')).toxml()
     nav = yaml.safe_load(open(os.path.join(SRC, 'axioma_navigation/config/nav2_params.yaml')))
     slam = yaml.safe_load(open(os.path.join(SRC, 'axioma_slam/config/slam_params.yaml')))
 
@@ -47,11 +58,20 @@ def read_sources():
         return m.group(1).strip() if m else None
 
     lidar = sdf[sdf.index('ydlidar_x3_pro'):]
-    joints = {m.group(1): ([float(v) for v in m.group(2).split()],
-                           [float(v) for v in m.group(3).split()])
-              for m in re.finditer(
-                  r'<joint name="(base_to_wheel\d)".*?<origin xyz="([^"]*)" rpy="([^"]*)"',
-                  urdf, re.S)}
+    # Parsed as XML rather than scraped with a regex: xacro re-serialises the
+    # document, so attribute order and whitespace are not the ones written by
+    # hand in the source and a pattern matched against those quietly stops
+    # matching.
+    tree = ET.fromstring(urdf)
+
+    def joint_origin(joint):
+        o = joint.find('origin')
+        return ([float(v) for v in o.get('xyz', '0 0 0').split()],
+                [float(v) for v in o.get('rpy', '0 0 0').split()])
+
+    joints = {j.get('name'): joint_origin(j)
+              for j in tree.findall('joint')
+              if re.fullmatch(r'base_to_wheel\d', j.get('name', ''))}
     dwb = nav['controller_server']['ros__parameters']['FollowPath']
     goal = nav['controller_server']['ros__parameters']['general_goal_checker']
     return dict(
@@ -66,8 +86,8 @@ def read_sources():
                    amin=float(tag('min_angle', lidar)), amax=float(tag('max_angle', lidar)),
                    rmin=float(tag('min', lidar)), rmax=float(tag('max', lidar)),
                    hz=float(tag('update_rate', lidar))),
-        lidar_z=float(re.search(r'<child link="base_scan"/>\s*<origin xyz="0 0 ([0-9.]+)"',
-                                urdf).group(1)),
+        lidar_z=next(joint_origin(j)[0][2] for j in tree.findall('joint')
+                     if j.find('child').get('link') == 'base_scan'),
         local=nav['local_costmap']['local_costmap']['ros__parameters'],
         glob=nav['global_costmap']['global_costmap']['ros__parameters'],
         amcl=nav['amcl']['ros__parameters'],
@@ -245,7 +265,7 @@ def main():
     fig = plt.figure(figsize=(17.4, 11.6), facecolor='white')
     fig.text(0.5, 0.968, 'Axioma 4WD  ·  Kinematic Model', ha='center',
              fontsize=26, weight='bold', color=INK)
-    fig.text(0.5, 0.938, 'every value on this sheet is read from model.sdf, axioma.urdf, '
+    fig.text(0.5, 0.938, 'every value on this sheet is read from model.sdf, axioma.urdf.xacro, '
                          'nav2_params.yaml and slam_params.yaml at render time',
              ha='center', fontsize=11, color=MUTED, style='italic')
 
@@ -345,7 +365,7 @@ def main():
         (f'AMCL {am["min_particles"]}-{am["max_particles"]} particles, {am["max_beams"]} beams', ''),
     ], size=9.2, dy=0.0585)
 
-    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'images', 'modelo-matematico.png')
+    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'images', 'mathematical-model.png')
     plt.savefig(out, dpi=110, facecolor='white')
     print('->', out)
 

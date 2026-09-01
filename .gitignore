@@ -2,7 +2,6 @@
 build/
 install/
 log/
-.claude/
 # Archivos de CMake
 CMakeFiles/
 CMakeCache.txt
@@ -29,7 +28,6 @@ venv/
 pip-wheel-metadata/
 
 # Archivos generados por tests
-*.xml
 *.test
 coverage/
 

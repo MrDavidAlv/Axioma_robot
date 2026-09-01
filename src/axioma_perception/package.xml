@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>axioma_perception</name>
+  <version>1.0.0</version>
+  <description>Axioma attitude-aware localization: EKF fusing a chassis IMU with wheel or ZED 2i visual-inertial odometry</description>
+  <maintainer email="ing.marioalvarezvallejo@gmail.com">Mario David Alvarez Vallejo</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>robot_localization</exec_depend>
+
+  <!-- zed_wrapper is deliberately NOT declared here.
+
+       Stereolabs' wrapper is not in rosdistro: it is built from source against
+       a locally installed ZED SDK, so declaring it would make `rosdep install`
+       fail for everyone including people who only ever run the simulation.
+       zed2i.launch.py is the only file that needs it, and it fails with a
+       readable message when it is missing. See that file's docstring. -->
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

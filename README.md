@@ -1,7 +1,7 @@
 # Axioma 4WD Autonomous Mobile Robot
 
 <div align="center">
-<img src="images/Portada.gif" width="85%"/>
+<img src="images/cover.gif" width="85%"/>
 </div>
 
 </br>
@@ -15,7 +15,7 @@
 [![Ignition Fortress](https://img.shields.io/badge/Gazebo-Fortress-orange)](#)
 [![Nav2](https://img.shields.io/badge/Nav2-Humble-00599C)](#)
 [![SLAM Toolbox](https://img.shields.io/badge/SLAM-Toolbox-green)](#)
-[![License](https://img.shields.io/badge/License-BSD-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 [![GitHub](https://img.shields.io/badge/GitHub-MrDavidAlv-181717?logo=github)](https://github.com/MrDavidAlv/Axioma_robot)
 ![Visitors](https://komarev.com/ghpvc/?username=MrDavidAlv&repo=Axioma_robot&label=Visitors&color=brightgreen)
 
@@ -34,7 +34,8 @@ sudo apt install -y python3-colcon-common-extensions python3-rosdep python3-argc
                      ros-humble-ros-gz ros-humble-navigation2 ros-humble-nav2-bringup \
                      ros-humble-robot-state-publisher ros-humble-joint-state-publisher \
                      ros-humble-slam-toolbox ros-humble-teleop-twist-keyboard \
-                     ros-humble-rviz2 ros-humble-xacro ros-humble-tf2-tools
+                     ros-humble-rviz2 ros-humble-xacro ros-humble-tf2-tools \
+                     ros-humble-robot-localization ros-humble-rtabmap-ros
 
 # 3. Clone and build
 mkdir -p ~/ros2/axioma_ws/src
@@ -49,10 +50,13 @@ ros2 launch axioma_bringup slam_bringup.launch.py
 
 # Or launch autonomous navigation (requires a saved map)
 ros2 launch axioma_bringup navigation_bringup.launch.py
+
+# Or launch RGB-D visual SLAM, mapping in 3D with the ZED 2i
+ros2 launch axioma_bringup vslam_bringup.launch.py
 ```
 
-Full steps, including Gazebo, in the **[Installation Guide](documentacion/guia-instalacion.md)**.
-Everything the robot can do, in the **[Usage Guide](documentacion/guia-uso.md)**.
+Full steps, including Gazebo, in the **[Installation Guide](docs/installation-guide.md)**.
+Everything the robot can do, in the **[Usage Guide](docs/usage-guide.md)**.
 
 ---
 
@@ -64,6 +68,7 @@ Everything the robot can do, in the **[Usage Guide](documentacion/guia-uso.md)**
 - [Mathematical Model](#mathematical-model)
 - [System Architecture](#system-architecture)
 - [Simulation Environment](#simulation-environment)
+- [Visual SLAM](#visual-slam)
 - [SLAM Validation](#slam-validation)
 - [Physical Robot](#physical-robot)
 - [Video Demonstrations](#video-demonstrations)
@@ -86,8 +91,8 @@ touching the physical robot.
 What it covers, end to end:
 
 - A 3D simulation environment with static obstacles, matching a real workspace
-- Simulated navigation sensors — LiDAR, wheel encoders — wired the same way
-  the physical robot's are
+- Simulated navigation sensors — LiDAR, wheel encoders, IMU, ZED 2i stereo
+  depth camera — wired the same way the physical robot's are
 - Localisation (AMCL), differential/skid-steer control, and planning (Nav2)
   built on the standard ROS 2 navigation stack
 - Trajectory planning under the robot's actual kinematic and dynamic limits
@@ -109,9 +114,12 @@ What it covers, end to end:
 | **Keyboard Teleoperation** | Standard teleop_twist_keyboard support for manual control during mapping |
 | **Full Visualization** | RViz2 with dynamic costmaps, planned trajectories, and AMCL particle clouds |
 | **4WD Differential Robot** | Robust odometry from 1000 PPR encoders with skid-steering kinematics |
+| **Attitude-Aware Odometry** | EKF (robot_localization) fusing a chassis IMU so the pose follows slopes instead of assuming flat ground |
+| **Stereo Depth Camera** | ZED 2i on the front face, feeding visual-inertial pose to the EKF on the physical robot |
+| **RGB-D Visual SLAM** | RTAB-Map building a 3D map and a Nav2-ready occupancy grid from the ZED 2i, with camera-only odometry or the fused EKF pose as the motion source |
 | **Ignition Gazebo Simulation** | Gazebo Sim (Fortress) with the ros_gz bridge for all sensor and actuator interfaces |
 | **Configurable Parameters** | All Nav2, AMCL, SLAM, and DWB parameters tunable per application |
-| **Open Source** | BSD license, free for academic, research, and commercial use |
+| **Open Source** | Apache 2.0 license, free for academic, research, and commercial use |
 
 </div>
 
@@ -120,7 +128,7 @@ What it covers, end to end:
 ## Mathematical Model
 
 <div align="center">
-<img src="images/modelo-matematico.png" width="900"/>
+<img src="images/mathematical-model.png" width="900"/>
 </div>
 
 4WD skid-steer kinematics, the control chain, and where every limit is
@@ -130,7 +138,7 @@ projection, and every number on the sheet is read from `model.sdf`,
 rendered, so it cannot drift out of date:
 
 ```bash
-python3 documentacion/modelo-matematico/render_diagram.py
+python3 docs/mathematical-model/render_diagram.py
 ```
 
 **Differential kinematics:**
@@ -155,7 +163,7 @@ pose, which brings yaw error under 3 % from 0.1 to 1.0 rad/s.
 
 Full write-up — geometry, direct/inverse kinematics, the control chain, every
 parameter with its source — in
-**[`documentacion/modelo-matematico/`](documentacion/modelo-matematico/)**.
+**[`docs/mathematical-model/`](docs/mathematical-model/)**.
 
 ---
 
@@ -165,14 +173,23 @@ parameter with its source — in
 
 `base_footprint` is the ground projection of `base_link` and the root of the
 URDF. It carries no inertia, which is what KDL needs from a root link, and it
-is the frame `odom_to_tf` attaches Gazebo odometry to. `base_link` hangs
-2.58 mm below it, because the wheel centres sit at z = 0.04068 while the
-wheels have radius 0.0381.
+is the frame `odom` attaches to. `base_link` hangs 2.58 mm below it, because
+the wheel centres sit at z = 0.04068 while the wheels have radius 0.0381.
+
+`odom -> base_footprint` has exactly one publisher, chosen by the `use_ekf`
+argument of `simulation.launch.py`: the EKF in `axioma_perception` by default,
+or `odom_to_tf` — which republishes the wheel plugin's odometry verbatim — when
+`use_ekf:=false`. Never both; a frame gets one parent.
+
+The description is a **xacro**, not plain URDF, because the ZED 2i contributes
+eight frames whose offsets come from the camera's geometry. Anything loading it
+has to render it first; `open(...).read()` yields a document full of `${...}`
+that KDL rejects.
 
 ```mermaid
 graph TD
     map -->|AMCL, navigation only| odom
-    odom -->|odom_to_tf| base_footprint
+    odom -->|"EKF (axioma_perception)"| base_footprint
     base_footprint -->|URDF, fixed joint| base_link
     base_link --> base_scan
     base_link --> imu_link
@@ -180,23 +197,32 @@ graph TD
     base_link --> wheel_2
     base_link --> wheel_3
     base_link --> wheel_4
+    base_link --> zed2i_camera_link
+    zed2i_camera_link --> zed2i_camera_center
+    zed2i_camera_center --> zed2i_left_camera_frame
+    zed2i_camera_center --> zed2i_right_camera_frame
 ```
 
 ### Data flow
 
-SLAM Toolbox and AMCL both publish `map -> odom`, but never at the same time —
-mapping and navigation are separate launches. Everything below `odom` is
-always live, driven by `robot_state_publisher` and `odom_to_tf`.
+SLAM Toolbox, AMCL and RTAB-Map all publish `map -> odom`, but never at the
+same time — mapping, navigation and visual SLAM are separate launches.
+Everything below `odom` is always live, driven by `robot_state_publisher` and
+whichever node owns `odom -> base_footprint`: the EKF by default, or the visual
+odometry when `vslam_bringup` runs with `odom_source:=visual`.
 
 ```mermaid
 flowchart LR
-    GZ["Gazebo\ngz-sim-diff-drive-system"] -- "/odom, /joint_states, /scan" --> BR(("ros_gz_bridge"))
-    BR --> OTF["odom_to_tf"]
-    OTF -- "TF odom→base_footprint" --> TF[("TF tree")]
+    GZ["Gazebo\ngz-sim-diff-drive-system"] -- "/odom, /joint_states, /scan, /imu" --> BR(("ros_gz_bridge"))
+    BR -- "/odom, /imu" --> EKF["EKF\nrobot_localization"]
+    EKF -- "TF odom→base_footprint" --> TF[("TF tree")]
     RSP["robot_state_publisher"] -- "TF base_footprint→sensors" --> TF
 
     BR -- "/scan" --> SLAM["SLAM Toolbox"]
     SLAM -- "/map, TF map→odom" --> TF
+
+    BR -- "/zed2i/image, depth, camera_info" --> RTAB["RTAB-Map\nRGB-D visual SLAM"]
+    RTAB -- "/cloud_map, /map, TF map→odom" --> TF
 
     MS["map_server"] --> AMCL
     BR -- "/scan" --> AMCL["AMCL"]
@@ -204,6 +230,43 @@ flowchart LR
     TF --> NAV["Nav2\nplanner + controller + BT"]
     NAV -- "/cmd_vel" --> GZ
 ```
+
+### Attitude-aware localization
+
+Axioma is a rigid 4WD skid-steer with no suspension. It cannot climb what a
+rocker-bogie rover climbs, and no amount of software changes that. What software
+*can* fix is the robot's idea of where it is while the ground is not flat.
+
+The wheel plugin integrates rotation on the assumption that the world is a
+plane, because a wheel encoder cannot tell "forward" from "up". `axioma_perception`
+answers that question with a sensor that can: the chassis IMU sees gravity, so
+roll and pitch are measured rather than assumed, and the EKF integrates the
+wheels' forward speed through that attitude instead of through an assumed-flat
+world.
+
+Measured in the terrain world, driving straight out of the warehouse, up the
+8.21° north ramp and onto the yard platform:
+
+| | ground truth | wheel odometry | EKF |
+|---|---|---|---|
+| z on the platform | 0.280 m | 0.000 m (**−280 mm**) | 0.286 m (+6 mm) |
+| pitch on the ramp | −8.21° | 0.00° | −8.21° |
+
+The raw odometry reports the distance travelled along the slope as horizontal
+distance and misses the climb entirely — it ends the run convinced the robot is
+still on the warehouse floor. On flat ground the two agree to within 3 mm over
+4 m, so the filter costs nothing where it is not needed.
+
+The split — attitude from the IMU, position and heading from the odometry
+source — is taken from [ros2_rover](https://github.com/mgonzs13/ros2_rover).
+Yaw is deliberately *not* taken from the IMU: there is no magnetometer on this
+robot, so heading drifts and correcting it stays SLAM Toolbox's and AMCL's job.
+
+On the physical robot the position source changes from the wheels to the
+ZED 2i's own positional tracking (`ekf_zed.yaml`), which is what the camera is
+mounted for — not obstacle detection. The wheels are dropped there entirely: a
+skid-steer turns by scrubbing its tyres sideways, and the encoders count that
+scrub as travel.
 
 SLAM Toolbox runs in asynchronous mode, building graph-based 2D occupancy grid
 maps in real time from LiDAR scans at 10 Hz (400 points per revolution) and
@@ -217,7 +280,26 @@ backup, wait).
 
 ## Simulation Environment
 
-The simulated world is a small office floor plan built entirely from primitive
+Two worlds, both generated by a script rather than hand-edited, and both
+emitting their own ground-truth occupancy grid from the same geometry list so
+the map and the world cannot drift apart:
+
+| World | Generator | What it is for |
+|---|---|---|
+| `office.world` | `generate_office_world.py` | Flat office floor plan. SLAM and Nav2 validation. |
+| `terrain.world` | `generate_terrain_world.py` | 18×10 m warehouse and raised yard, joined by two 8.21° ramps into a loop. The yard is asphalt / dirt / sand with genuinely different `<mu>`, not just different colours. |
+
+The terrain world is what `terrain_demo.launch.py` opens — Gazebo, RViz and the
+teleop GUI together, robot lined up with the north ramp so that holding forward
+climbs it:
+
+```bash
+ros2 launch axioma_gazebo terrain_demo.launch.py
+# and to see the same lap without the filter:
+ros2 launch axioma_gazebo terrain_demo.launch.py use_ekf:=false
+```
+
+The office world is a small office floor plan built entirely from primitive
 geometry (boxes and cylinders). It loads instantly and pulls nothing from Fuel,
 so the simulation starts identically on any machine.
 
@@ -250,6 +332,80 @@ the two can never drift apart — see
 
 ---
 
+## Visual SLAM
+
+The LiDAR maps a floor plan. The ZED 2i maps the room, and on the terrain world
+that difference is the whole point: a 2D occupancy grid cannot express a
+warehouse floor and a yard platform 28 cm above it, because both project onto
+the same cells.
+
+```bash
+# Gazebo, RViz, the teleop GUI and RTAB-Map, mapping the terrain world in 3D
+ros2 launch axioma_bringup vslam_bringup.launch.py
+
+# the flat office world instead
+ros2 launch axioma_bringup vslam_bringup.launch.py world:=office
+
+# map on top of the fused EKF pose rather than on camera-only odometry
+ros2 launch axioma_bringup vslam_bringup.launch.py odom_source:=ekf
+
+# RTAB-Map's own window, showing the feature matches frame by frame
+ros2 launch axioma_bringup vslam_bringup.launch.py rtabmap_viz:=true
+```
+
+Drive with the teleop GUI: visual SLAM has nothing to do until the robot moves,
+because a stationary camera adds no nodes to the pose graph and closes no loops.
+The map lands on `/cloud_map` as a 3D cloud and on `/map` as a Nav2-ready
+occupancy grid, and the database is written to `~/.ros/axioma_vslam.db`. To
+relocalise against an existing database instead of rebuilding it:
+
+```bash
+ros2 launch axioma_slam vslam.launch.py localization:=true
+```
+
+<div align="center">
+<img src="images/zed-depth-cloud.png" width="900"/>
+<br/>
+<em>Gazebo and RViz side by side: the same scene as geometry and as the depth
+cloud the ZED 2i returns, coloured by height.</em>
+</div>
+
+### Two odometry sources, and why the choice matters
+
+`odom_source` decides who owns `odom -> base_footprint`, and a frame gets
+exactly one parent, so the two modes are genuinely exclusive:
+
+| `odom_source` | Who owns the transform | Measured on the terrain world |
+|---|---|---|
+| `visual` (default) | `rgbd_odometry`, camera only | 3.4% short over a 2.62 m straight run; roughly 15% off after two 114-degree turns |
+| `ekf` | `axioma_perception`, IMU + wheels | The camera only builds the map; the pose is the fused estimate validated in [Attitude-aware localization](#attitude-aware-localization) |
+
+Visual odometry drifts on turns, and that is not a defect to hide: it is the
+reason the robot carries an IMU. What the camera alone cannot recover is
+absolute attitude. Driving up the north ramp, `rgbd_odometry` reported a 20 cm
+*descent* over a run that truly climbed 15 cm — not an error, but its `odom`
+frame having been born aligned with a chassis already pitched 8.2 degrees, with
+nothing to tell it which way is down. Projecting the true displacement into
+that tilted frame predicts −0.221 m against the −0.203 m it reported.
+
+### Tuning that the simulation forced
+
+RTAB-Map's defaults assume a textured scene. A simulated warehouse is the
+opposite: every surface is flat-shaded, and the only corners in the image are
+the edges where two objects meet. With the defaults, registration reported
+`Too low inliers after bundle adjustment: 18<20` within seconds of moving — the
+scene yields around twenty features and the default demands twenty. One
+marginal frame then starts a collapse, because the motion model extrapolates
+past the failure until the guess is metres wrong and matches fall to single
+digits.
+
+`src/axioma_slam/config/vslam_params.yaml` lowers the inlier threshold to
+something the scene can meet, accepts weaker corners so there are more of them,
+and resets instead of extrapolating. Inlier quality went from 31-40 to 69-72
+and a 2.62 m run produced zero registration failures.
+
+---
+
 ## SLAM Validation
 
 `src/axioma_slam/scripts/score_map.py` compares the SLAM map against the exact
@@ -271,12 +427,23 @@ Result for the shipped map, after a 90 m run through all four rooms:
 </div>
 
 Pink is the real geometry, black is the SLAM map. There is no blue, meaning no
-occupied cell sits more than 25 cm from a real wall. Raw wheel odometry drifts
-to 3.79 m over the same run, while SLAM Toolbox stays within 0.14 m of the
-Gazebo ground-truth pose throughout.
+occupied cell sits more than 25 cm from a real wall.
+
+<div align="center">
+<img src="images/slam-telemetry.png" width="900"/>
+</div>
+
+Three views of that same 90 m run. On the left, the trajectories over the floor
+plan: SLAM Toolbox's estimate (blue) sits on top of the Gazebo ground truth
+(black) for the whole lap, while raw wheel odometry (red) peels away and ends
+up driving through walls. In the middle, position error against ground truth —
+odometry reaches **3.79 m** while SLAM stays within **0.14 m**, a factor of 27.
+On the right, yaw error: odometry's drifts monotonically past 30 degrees as the
+skid-steer's lateral scrub accumulates, while SLAM's oscillates around zero with
+no trend, because every loop closure puts it back.
 
 Odometry-vs-SLAM telemetry and the live localisation cross-check are in
-**[SLAM Validation, full write-up](documentacion/validacion-slam.md)**.
+**[SLAM Validation, full write-up](docs/slam-validation.md)**.
 
 ---
 
@@ -292,7 +459,7 @@ Odometry-vs-SLAM telemetry and the live localisation cross-check are in
 </div>
 
 Build photos and the CAD/assembly videos are in
-**[Project History](documentacion/historial-proyecto.md)**.
+**[Project History](docs/project-history.md)**.
 
 ---
 
@@ -310,7 +477,7 @@ Build photos and the CAD/assembly videos are in
 
 Earlier recordings from the ROS 2 Foxy version of this project — navigation,
 SLAM, sensor/TF visualization, mechanical assembly — are in
-**[Project History](documentacion/historial-proyecto.md)**.
+**[Project History](docs/project-history.md)**.
 
 ---
 
@@ -320,7 +487,7 @@ SLAM, sensor/TF visualization, mechanical assembly — are in
   (gz-sim 6) · **Python**: 3.8+
 
 Full requirements, the Gazebo install, and every dependency in the
-**[Installation Guide](documentacion/guia-instalacion.md)**.
+**[Installation Guide](docs/installation-guide.md)**.
 
 ---
 
@@ -329,14 +496,14 @@ Full requirements, the Gazebo install, and every dependency in the
 The Quick Start above covers launching SLAM and Navigation. For exploring
 with `teleop_twist_keyboard` or the GUI, saving and scoring a map, running the
 physical YDLIDAR X3 PRO, and a reference list of useful `ros2` commands, see
-the **[Usage Guide](documentacion/guia-uso.md)**.
+the **[Usage Guide](docs/usage-guide.md)**.
 
 ---
 
 ## Project Structure
 
 Package layout — launch files, configs, scripts — is in
-**[Project Structure](documentacion/estructura-proyecto.md)**.
+**[Project Structure](docs/project-structure.md)**.
 
 ---
 
@@ -344,4 +511,4 @@ Package layout — launch files, configs, scripts — is in
 
 **Author**: Mario David Alvarez Vallejo
 **Repository**: [github.com/MrDavidAlv/Axioma_robot](https://github.com/MrDavidAlv/Axioma_robot)
-**License**: BSD -- Free for academic and research use
+**License**: Apache 2.0 -- see [LICENSE](LICENSE)

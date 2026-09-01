@@ -1,0 +1,160 @@
+# EKF for SIMULATION: chassis IMU + wheel odometry.
+#
+# ---------------------------------------------------------------------------
+# Why this filter exists at all
+# ---------------------------------------------------------------------------
+# Axioma is a rigid 4WD skid-steer with no suspension. It cannot climb what a
+# rocker-bogie rover climbs, and no amount of software changes that. What
+# software *can* fix is the robot's idea of where it is while the ground is not
+# flat.
+#
+# The gz DiffDrive plugin integrates wheel rotation on the assumption that the
+# world is a plane: drive 1 m up a 10 degree ramp and it reports 1 m of x and
+# 0 m of z, when the truth is 0.985 m of x and 0.174 m of z. The error is not
+# the odometry being noisy, it is the odometry being asked a question it has no
+# way to answer, because a wheel encoder cannot tell "forward" from "up".
+#
+# This filter answers it by taking attitude from a sensor that can measure it.
+# The IMU sees gravity, so it knows roll and pitch absolutely. The EKF then
+# integrates the wheels' *forward speed* through that attitude instead of
+# through an assumed-flat world, and x, y and z come out consistent with the
+# slope the robot is actually on.
+#
+# ---------------------------------------------------------------------------
+# The split, and where it comes from
+# ---------------------------------------------------------------------------
+# The pattern is lifted from ros2_rover (github.com/mgonzs13/ros2_rover), whose
+# stack was read and then run on a Gazebo heightmap to confirm it behaves as
+# advertised: driving its rover across rough terrain for 45 s produced roll of
+# +/-6 deg and pitch up to +/-14 deg in the fused output, tracking the ground.
+#
+#     attitude (roll, pitch)  <- IMU, absolute, observed from gravity
+#     position and heading    <- the odometry source, dead reckoned
+#
+# ros2_rover feeds position from RTAB-Map visual odometry and never gives its
+# EKF the wheels at all. Axioma cannot copy that in simulation, because its
+# position source on the real robot is the ZED SDK's positional tracking, which
+# runs on the GPU inside the camera driver and has no Gazebo equivalent. So in
+# simulation the wheels take over that job, and this file differs from
+# ekf_zed.yaml in exactly that one respect. Keep the two in step.
+#
+# ---------------------------------------------------------------------------
+# Reading the *_config vectors
+# ---------------------------------------------------------------------------
+# Fifteen booleans, in three rows of three plus two:
+#
+#     x      y      z
+#     roll   pitch  yaw
+#     vx     vy     vz
+#     vroll  vpitch vyaw
+#     ax     ay     az
+#
+# true means "fuse this field of this message". Fusing something twice from two
+# sources that disagree is the usual way to make one of these filters oscillate,
+# so every true below appears exactly once across all sensors, except the
+# angular rates, which are noted where they overlap.
+ekf_filter_node:
+  ros__parameters:
+
+    # 50 Hz matches the DiffDrive plugin's odom_publish_frequency in model.sdf.
+    # Running faster only re-predicts between measurements; running slower
+    # would throw odometry away.
+    frequency: 50.0
+
+    # 0.1 s = five missed odometry messages before the filter decides a sensor
+    # is gone and coasts on prediction alone.
+    sensor_timeout: 0.1
+
+    # The whole point of this package. With two_d_mode true, robot_localization
+    # forces z, roll and pitch to zero and this file would be an expensive way
+    # to reproduce the flat-world odometry it is meant to replace.
+    two_d_mode: false
+
+    transform_time_offset: 0.0
+    transform_timeout: 0.0
+    print_diagnostics: true
+    debug: false
+
+    # This filter owns odom -> base_footprint. axioma_gazebo's odom_to_tf node
+    # publishes the same transform from the raw plugin output, and two
+    # publishers of one transform is a broken TF tree, not a merged one — so
+    # simulation.launch.py switches odom_to_tf off whenever use_ekf is true.
+    publish_tf: true
+    publish_acceleration: false
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_footprint
+    world_frame: odom
+
+    # base_footprint, not base_link, for the same reason odom_to_tf uses it:
+    # base_link is already the child of base_footprint through a fixed joint
+    # from the URDF, and a frame gets exactly one parent.
+    #
+    # This also means robot_localization has to look up imu_link ->
+    # base_footprint in TF to rotate the IMU into the body frame. That comes
+    # from robot_state_publisher, so the EKF needs the description running.
+
+    # --- Wheel odometry (gz DiffDrive plugin) ------------------------------
+    #
+    # Velocities only. The plugin also publishes an integrated pose, and fusing
+    # that as well would feed the filter its own flat-world assumption right
+    # back — the very error this file exists to remove. Taking vx and vyaw and
+    # letting the EKF do the integrating is what puts the motion on the slope.
+    #
+    # vy is false because a skid-steer has no sideways drive. It scrubs
+    # sideways when it turns (see the mu/mu2 comment in model.sdf), but that is
+    # slip, not a measurement, and the plugin reports it as zero regardless.
+    odom0: odom
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, true,
+                   false, false, false]
+    odom0_queue_size: 10
+    odom0_differential: false
+    odom0_relative: false
+    odom0_nodelay: true
+
+    # --- Chassis IMU (imu_link, model.sdf) ---------------------------------
+    #
+    # Roll and pitch absolute: this is the measurement the whole filter is for.
+    #
+    # Yaw is false, and that is deliberate. A gyro integrates yaw with nothing
+    # to correct the drift — there is no magnetometer on this robot, and the
+    # simulated IMU's orientation output is ground truth wearing a costume, so
+    # trusting it here would make the simulation look better than the hardware
+    # ever will. Heading comes from vyaw and drifts, exactly as on the real
+    # robot; correcting it is SLAM Toolbox's and AMCL's job, one level up.
+    #
+    # All three rates are fused. vyaw overlaps with odom0's vyaw on purpose:
+    # the two disagree precisely when the wheels are slipping, and letting the
+    # filter weigh a gyro against slipping wheels is the point.
+    #
+    # Linear accelerations stay false. Double-integrating a MEMS accelerometer
+    # to get position is a well-known way to produce confident nonsense, and
+    # this filter already has a better velocity source in the wheels.
+    imu0: imu
+    imu0_config: [false, false, false,
+                  true,  true,  false,
+                  false, false, false,
+                  true,  true,  true,
+                  false, false, false]
+    imu0_queue_size: 20
+    imu0_differential: false
+    imu0_relative: false
+    imu0_nodelay: true
+    imu0_remove_gravitational_acceleration: true
+
+    # --- Covariances -------------------------------------------------------
+    #
+    # Left at robot_localization's defaults on purpose. The right values depend
+    # on how much the wheels actually slip on each surface, and Axioma has no
+    # world yet with more than one surface in it to measure that on — the
+    # terrain world with its separate asphalt, dirt and sand friction patches
+    # is what makes that measurable. Hand-writing a 15x15 matrix before then
+    # would look authoritative without being backed by anything.
+    #
+    # When it is time to tune: process_noise_covariance controls how fast the
+    # filter distrusts its own prediction, and the diagonal entries for vx and
+    # vyaw are the ones that matter on a slipping skid-steer.

@@ -1,0 +1,131 @@
+# EKF for the REAL ROBOT: chassis IMU + ZED 2i visual-inertial odometry.
+#
+# ---------------------------------------------------------------------------
+# What changes from ekf_sim.yaml, and why
+# ---------------------------------------------------------------------------
+# Both files answer the same question — where is the robot when the ground is
+# not flat — and both take attitude from the same place: the chassis IMU sees
+# gravity, so roll and pitch are observed rather than assumed. Read the long
+# explanation at the top of ekf_sim.yaml; it is not repeated here.
+#
+# The one difference is where position comes from:
+#
+#     ekf_sim.yaml    position <- wheel odometry (gz DiffDrive plugin)
+#     this file       position <- ZED 2i positional tracking
+#
+# The wheels are dropped entirely here, not merely down-weighted. A skid-steer
+# turns by scrubbing its tyres sideways across the ground; the encoders count
+# that scrub as travel, and on dirt or sand they count a good deal of travel
+# that never happened. The camera measures the ground going past instead, so
+# it is wrong in the places the wheels are wrong, and this is exactly the split
+# ros2_rover uses on its rover (it computes wheel odometry and deliberately
+# never feeds it to the filter).
+#
+# Simulation keeps the wheels only because it has to: the ZED SDK's tracking
+# runs on the GPU inside the camera driver and there is no Gazebo equivalent.
+# When something changes in one of these two files, check the other.
+#
+# ---------------------------------------------------------------------------
+# What this filter does NOT do
+# ---------------------------------------------------------------------------
+# It does not close loops and it does not correct drift. world_frame is odom,
+# so the output is a smooth, continuous, locally accurate pose that drifts
+# without bound over a long run — which is what odom is defined to be, and what
+# Nav2 and SLAM Toolbox expect to receive. Global correction is map -> odom,
+# and that belongs to SLAM Toolbox or AMCL one level up.
+#
+# The ZED SDK also does its own loop closing (`area_memory`) and will publish
+# map -> odom itself if allowed to. It is not allowed to: zed2i.launch.py
+# passes publish_map_tf:=false, because two things claiming map -> odom is a
+# broken TF tree. Only the SDK's odometry output is used here.
+ekf_filter_node:
+  ros__parameters:
+
+    # The ZED publishes odometry at the camera's frame rate. 30 Hz is the
+    # HD720 default and the rate the filter is paced to; the IMU arrives faster
+    # and is simply fused as it comes in.
+    frequency: 30.0
+
+    # 0.2 s, twice ekf_sim.yaml's. A USB 3 camera doing depth and tracking on
+    # the GPU does occasionally drop a frame under load, and declaring the only
+    # position source dead over one missed message is worse than coasting.
+    sensor_timeout: 0.2
+
+    # False for the same reason as in simulation: with two_d_mode true this
+    # filter would flatten z, roll and pitch and undo its own purpose.
+    two_d_mode: false
+
+    transform_time_offset: 0.0
+    transform_timeout: 0.0
+    print_diagnostics: true
+    debug: false
+
+    publish_tf: true
+    publish_acceleration: false
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_footprint
+    world_frame: odom
+
+    # --- ZED 2i positional tracking ----------------------------------------
+    #
+    # Topic name assumes camera_name:=zed2i and the wrapper's default node name
+    # zed_node, which is what zed2i.launch.py passes. Rename the camera there
+    # and this line has to follow.
+    #
+    # Pose, not velocity, and this is the opposite of what ekf_sim.yaml does
+    # with the wheels. The wheel plugin's pose is a flat-world integration and
+    # is refused there; the ZED's pose is a real 6-DoF measurement of where the
+    # camera has moved through space, so taking it whole is the point.
+    #
+    # Of its orientation, only yaw is fused. The camera does estimate roll and
+    # pitch, but it estimates them from the scene, whereas the chassis IMU
+    # measures them against gravity — and fusing the same quantity twice from
+    # two sources that disagree is how these filters end up oscillating. Yaw is
+    # the one angle gravity cannot observe, so the camera owns it.
+    #
+    # The message is stamped in the camera frame. robot_localization looks up
+    # zed2i_camera_link -> base_footprint in TF to move it onto the chassis,
+    # which is why the description has to be running for this to work at all.
+    odom0: /zed2i/zed_node/odom
+    odom0_config: [true,  true,  true,
+                   false, false, true,
+                   false, false, false,
+                   false, false, false,
+                   false, false, false]
+    odom0_queue_size: 10
+    odom0_differential: false
+    odom0_relative: false
+    odom0_nodelay: true
+
+    # --- Chassis IMU -------------------------------------------------------
+    #
+    # Identical to ekf_sim.yaml: roll and pitch absolute, yaw left alone, the
+    # three angular rates fused, linear accelerations refused. The reasoning is
+    # written out there.
+    #
+    # Note this is the chassis IMU on imu_link, not the one inside the ZED. The
+    # camera's IMU is already fused into the tracking above by the SDK, so
+    # adding it here would feed the filter the same information twice. The
+    # chassis unit also sits on the centreline with no lever arm to the yaw
+    # axis, so a turn in place gives it no centripetal acceleration to explain.
+    imu0: imu
+    imu0_config: [false, false, false,
+                  true,  true,  false,
+                  false, false, false,
+                  true,  true,  true,
+                  false, false, false]
+    imu0_queue_size: 20
+    imu0_differential: false
+    imu0_relative: false
+    imu0_nodelay: true
+    imu0_remove_gravitational_acceleration: true
+
+    # --- Covariances -------------------------------------------------------
+    #
+    # Defaults, as in ekf_sim.yaml, and here for a second reason: the ZED
+    # publishes its own per-message covariance and robot_localization uses it,
+    # so the tracking's own confidence already varies with how much texture the
+    # camera can see. Overriding that with a hand-written constant would throw
+    # away the better information.

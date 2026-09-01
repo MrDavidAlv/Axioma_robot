@@ -11,8 +11,15 @@
 
   <depend>ros_gz_sim</depend>
   <depend>ros_gz_bridge</depend>
+  <!-- point_cloud_xyzrgb: reprojects the ZED depth image into /zed2i/points.
+       Gazebo's own cloud cannot be bridged with a correct frame - see the
+       sensor block in models/axioma_v2/model.sdf. -->
+  <depend>rtabmap_util</depend>
   <depend>robot_state_publisher</depend>
   <depend>axioma_description</depend>
+  <depend>axioma_perception</depend>
+  <depend>axioma_teleop_gui</depend>
+  <depend>rviz2</depend>
   <depend>xacro</depend>
   <depend>rclpy</depend>
   <depend>tf2_ros</depend>

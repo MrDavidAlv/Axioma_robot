@@ -8,6 +8,11 @@
       <render_engine>ogre2</render_engine>
     </plugin>
     <plugin filename="gz-sim-contact-system" name="gz::sim::systems::Contact"/>
+    <!-- IMU. Unlike the lidar and the camera, which the Sensors system above
+         already covers, an <sensor type="imu"> publishes nothing at all unless
+         this system is loaded in the world: the topic simply never appears and
+         Gazebo logs no warning about it. -->
+    <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu"/>
 
     <gravity>0 0 -9.8</gravity>
     <physics name='default_physics' type='ode'>
