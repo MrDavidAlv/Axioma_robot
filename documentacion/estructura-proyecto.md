@@ -1,60 +1,65 @@
-# 📁 Estructura del Proyecto
+# 📁 Project Structure
 
 ```
 Axioma_robot/
 ├── src/
-│   ├── axioma_bringup/            # Orquestadores de lanzamiento de alto nivel
+│   ├── axioma_bringup/            # High-level launch orchestrators
 │   │   ├── config/
-│   │   │   └── ydlidar_x3_pro.yaml    # Parámetros del driver para el LiDAR real
+│   │   │   └── ydlidar_x3_pro.yaml    # Driver parameters for the physical LiDAR
 │   │   └── launch/
 │   │       ├── slam_bringup.launch.py
 │   │       ├── navigation_bringup.launch.py
-│   │       └── lidar.launch.py        # YDLIDAR X3 PRO físico
+│   │       ├── vslam_bringup.launch.py   # Simulation + RTAB-Map + RViz + teleop
+│   │       └── lidar.launch.py        # Physical YDLIDAR X3 PRO
 │   │
-│   ├── axioma_description/        # Modelo URDF, mallas, configs de RViz
+│   ├── axioma_description/        # URDF model, meshes, RViz configs
 │   │   ├── urdf/
-│   │   │   ├── axioma.urdf.xacro      # Descripción del robot (xacro, no URDF plano)
-│   │   │   └── zed2i_macro.urdf.xacro # Árbol de frames de la ZED 2i (de Stereolabs)
+│   │   │   ├── axioma.urdf.xacro      # Robot description (xacro, not plain URDF)
+│   │   │   └── zed2i_macro.urdf.xacro # ZED 2i frame tree (from Stereolabs)
 │   │   ├── meshes/
 │   │   ├── rviz/
 │   │   └── launch/
 │   │
-│   ├── axioma_gazebo/             # Simulación en Ignition Gazebo (Fortress)
+│   ├── axioma_gazebo/             # Ignition Gazebo (Fortress) simulation
 │   │   ├── axioma_gazebo/
-│   │   │   └── odom_to_tf.py      # Odometría a TF
-│   │   ├── models/axioma_v2/      # Modelo SDF con mallas
+│   │   │   └── odom_to_tf.py      # Odometry to TF
+│   │   ├── models/axioma_v2/      # SDF model with meshes
 │   │   ├── scripts/
-│   │   │   ├── generate_office_world.py    # Genera el mundo y el mapa de Nav2 juntos
-│   │   │   └── generate_terrain_world.py   # Ídem para el mundo de nave + patio
+│   │   │   ├── generate_office_world.py    # Emits the world and the Nav2 map together
+│   │   │   └── generate_terrain_world.py   # Same, for the warehouse + yard world
 │   │   ├── rviz/
-│   │   │   └── terrain_demo.rviz  # Pose fusionada, nube ZED, LiDAR y TF
+│   │   │   └── terrain_demo.rviz  # Fused pose, ZED cloud, LiDAR and TF
 │   │   ├── worlds/
-│   │   │   ├── office.world       # Recepción, 2 oficinas, sala de reuniones
-│   │   │   ├── terrain.world      # Nave, 2 rampas de 8.21° y patio asfalto/tierra/arena
+│   │   │   ├── office.world       # Reception, 2 offices, meeting room
+│   │   │   ├── terrain.world      # Warehouse, 2 ramps at 8.21° and asphalt/dirt/sand yard
 │   │   │   └── empty.world
 │   │   └── launch/
 │   │       ├── simulation.launch.py
-│   │       └── terrain_demo.launch.py   # Gazebo + RViz + GUI de teleoperación
+│   │       └── terrain_demo.launch.py   # Gazebo + RViz + teleop GUI
 │   │
-│   ├── axioma_perception/         # Localización consciente de la actitud (EKF)
+│   ├── axioma_perception/         # Attitude-aware localisation (EKF)
 │   │   ├── config/
-│   │   │   ├── ekf_sim.yaml       # Simulación: IMU + odometría de ruedas
-│   │   │   └── ekf_zed.yaml       # Robot real: IMU + tracking de la ZED 2i
+│   │   │   ├── ekf_sim.yaml       # Simulation: IMU + wheel odometry
+│   │   │   └── ekf_zed.yaml       # Real robot: IMU + ZED 2i tracking
 │   │   └── launch/
-│   │       ├── ekf.launch.py      # robot_localization; publica odom→base_footprint
-│   │       └── zed2i.launch.py    # Cámara ZED 2i física (necesita el SDK de ZED)
+│   │       ├── ekf.launch.py      # robot_localization; publishes odom→base_footprint
+│   │       └── zed2i.launch.py    # Physical ZED 2i camera (needs the ZED SDK)
 │   │
-│   ├── axioma_slam/               # Configuración de SLAM Toolbox
+│   ├── axioma_slam/               # SLAM Toolbox and RTAB-Map configuration
 │   │   ├── config/
-│   │   │   └── slam_params.yaml
+│   │   │   ├── slam_params.yaml
+│   │   │   └── vslam_params.yaml  # RGB-D visual SLAM, tuned for a low-texture scene
 │   │   ├── scripts/
-│   │   │   └── score_map.py       # Compara un mapa de SLAM contra el plano exacto
+│   │   │   └── score_map.py       # Scores a SLAM map against the exact floor plan
 │   │   ├── rviz/
+│   │   │   ├── slam.rviz
+│   │   │   └── vslam.rviz         # RTAB-Map cloud and grid, visual odometry, EKF
 │   │   └── launch/
 │   │       ├── slam.launch.py
+│   │       ├── vslam.launch.py    # rgbd_odometry + rtabmap; sim or real robot
 │   │       └── save_map.launch.py
 │   │
-│   ├── axioma_navigation/         # Configuración de Nav2 y mapas
+│   ├── axioma_navigation/         # Nav2 configuration and maps
 │   │   ├── config/
 │   │   │   └── nav2_params.yaml
 │   │   ├── maps/
@@ -62,7 +67,7 @@ Axioma_robot/
 │   │   └── launch/
 │   │       └── navigation.launch.py
 │   │
-│   └── axioma_teleop_gui/         # Interfaz de teleoperación en PyQt5
+│   └── axioma_teleop_gui/         # PyQt5 teleoperation interface
 │       ├── axioma_teleop_gui/
 │       │   ├── main.py
 │       │   ├── main_window.py
@@ -75,17 +80,17 @@ Axioma_robot/
 │           └── teleop_gui.launch.py
 │
 ├── documentacion/
-│   ├── modelo-matematico/         # Cinemática, control y parámetros físicos
+│   ├── modelo-matematico/         # Kinematics, control and physical parameters
 │   ├── guia-instalacion.md
 │   ├── guia-uso.md
 │   ├── validacion-slam.md
 │   ├── historial-proyecto.md
-│   └── estructura-proyecto.md     # este documento
+│   └── estructura-proyecto.md     # this document
 │
-├── images/                        # Imágenes de la documentación
+├── images/                        # Documentation images
 └── README.md
 ```
 
 ---
 
-Vuelve al [README](../README.md).
+Back to the [README](../README.md).

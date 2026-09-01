@@ -1,16 +1,16 @@
-# 📡 Validación de SLAM
+# 📡 SLAM Validation
 
-El README muestra el resultado principal (puntuación del mapa contra el plano
-exacto). Aquí está el resto de la evidencia: cómo se mide, y por qué la
-odometría cruda no basta.
+The README shows the headline result (the map scored against the exact floor
+plan). Here is the rest of the evidence: how it is measured, and why raw
+odometry is not enough.
 
 ---
 
-## Una sola fuente de verdad para el mundo y su plano
+## One source of truth for the world and its floor plan
 
-`src/axioma_gazebo/scripts/generate_office_world.py` emite **a la vez** el
-mundo de Gazebo y una rejilla de ocupación exacta de ese mismo mundo, a partir
-de la misma lista de geometría, para que los dos no puedan desalinearse:
+`src/axioma_gazebo/scripts/generate_office_world.py` emits **both** the Gazebo
+world and an exact occupancy grid of that same world, from the same geometry
+list, so the two cannot drift apart:
 
 ```bash
 python3 src/axioma_gazebo/scripts/generate_office_world.py
@@ -18,44 +18,41 @@ python3 src/axioma_gazebo/scripts/generate_office_world.py
 # -> src/axioma_navigation/maps/ground_truth.{pgm,yaml}
 ```
 
-Solo se rasteriza como obstáculo la geometría más alta que el plano del LiDAR
-(0.15 m), y el espacio libre se rellena por inundación desde el punto de
-spawn, así que todo lo que queda fuera del edificio permanece desconocido: la
-misma estructura que produce un mapeo real.
+Only geometry taller than the LiDAR plane (0.15 m) is rasterised as an
+obstacle, and free space is flood-filled from the spawn point, so everything
+outside the building stays unknown — the same structure real mapping produces.
 
-`ground_truth` **no** es el mapa con el que navega Nav2. Ese
-(`maps/mapa.yaml`) sale de conducir el robot con SLAM Toolbox corriendo,
-igual que en el robot real. El plano exacto existe para poder **medir** la
-calidad del mapa de SLAM en vez de solo mirarlo.
+`ground_truth` is **not** the map Nav2 navigates with. That one
+(`maps/mapa.yaml`) comes from driving the robot with SLAM Toolbox running, just
+as on the real robot. The exact floor plan exists so the quality of the SLAM
+map can be **measured** rather than merely eyeballed.
 
-## Cómo se puntúa
+## How it is scored
 
-`src/axioma_slam/scripts/score_map.py` compara el mapa de SLAM contra ese
-plano exacto y reporta dos números: qué tan lejos está cada celda ocupada del
-mapa de SLAM del obstáculo real más cercano (cuánto del mapa está inventado),
-y cuántos obstáculos reales dentro del territorio explorado el mapa realmente
-marca.
+`src/axioma_slam/scripts/score_map.py` compares the SLAM map against that exact
+floor plan and reports two numbers: how far each occupied cell of the SLAM map
+is from the nearest real obstacle (how much of the map is invented), and how
+many real obstacles inside explored territory the map actually marks.
 
 ```bash
-python3 src/axioma_slam/scripts/score_map.py --saved out.png "titulo del run"
+python3 src/axioma_slam/scripts/score_map.py --saved out.png "run title"
 ```
 
-## Deriva de la odometría vs. SLAM
+## Odometry drift vs. SLAM
 
-La odometría cruda (rueda) deriva a **3.79 m** a lo largo del recorrido,
-mientras que SLAM Toolbox se mantiene dentro de **0.14 m** de la pose real de
-Gazebo todo el tiempo, sin saltos.
+Raw wheel odometry drifts to **3.79 m** over the run, while SLAM Toolbox stays
+within **0.14 m** of the Gazebo ground-truth pose throughout, with no jumps.
 
 <div align="center">
 <img src="../images/slam-telemetry.png" width="960"/>
 </div>
 
-## Verificación de localización
+## Localisation check
 
-Retornos de láser en vivo (verde) proyectados sobre el mapa de SLAM y sobre el
-costmap global inflado, con la pose de AMCL en rojo. Caen sobre las paredes,
-el mostrador de recepción y las columnas, confirmando que el mundo, el mapa y
-la estimación de pose concuerdan entre sí.
+Live laser returns (green) projected onto the SLAM map and onto the inflated
+global costmap, with AMCL's pose in red. They land on the walls, the reception
+desk and the columns, confirming that the world, the map and the pose estimate
+all agree with each other.
 
 <div align="center">
 <img src="../images/costmap-validation.png" width="960"/>
@@ -63,4 +60,4 @@ la estimación de pose concuerdan entre sí.
 
 ---
 
-Vuelve al [README](../README.md).
+Back to the [README](../README.md).

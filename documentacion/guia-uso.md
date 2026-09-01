@@ -1,91 +1,139 @@
-# 🚀 Guía de Uso
+# 🚀 Usage Guide
 
-Referencia completa de cómo operar el Axioma, en simulación y en el robot
-físico. El README cubre lo esencial en su Quick Start; aquí está el resto.
+Complete reference for operating Axioma, in simulation and on the physical
+robot. The README covers the essentials in its Quick Start; the rest is here.
 
 ---
 
-## SLAM (mapeo)
+## SLAM (mapping)
 
-Lanza la simulación con SLAM Toolbox y RViz:
+Launch the simulation with SLAM Toolbox and RViz:
 
 ```bash
 ros2 launch axioma_bringup slam_bringup.launch.py
 ```
 
-En otra terminal, conduce el robot para explorar el entorno:
+In another terminal, drive the robot to explore the environment:
 
 ```bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
 
-O con la interfaz gráfica de teleoperación:
+Or with the teleoperation GUI:
 
 ```bash
 ros2 launch axioma_teleop_gui teleop_gui.launch.py
 ```
 
-Guarda el mapa cuando el entorno esté completamente explorado:
+Save the map once the environment is fully explored:
 
 ```bash
 ros2 launch axioma_slam save_map.launch.py
 ```
 
-Con el workspace compilado con `--symlink-install` esto escribe directo en
-`src/axioma_navigation/maps/mapa.{pgm,yaml}`, así que el mapa queda bajo
-control de versiones en vez de perderse en la siguiente compilación. Revisa
-qué tan bien quedó con:
+With the workspace built using `--symlink-install` this writes straight into
+`src/axioma_navigation/maps/mapa.{pgm,yaml}`, so the map ends up under version
+control instead of being lost on the next build. Check how good it came out
+with:
 
 ```bash
 python3 src/axioma_slam/scripts/score_map.py
 ```
 
-## Navegación autónoma
+## VSLAM (RGB-D visual mapping)
 
-Lanza la simulación con Nav2 y RViz (requiere un mapa ya guardado):
+3D mapping with the ZED 2i through RTAB-Map. Unlike SLAM Toolbox, which
+projects everything onto a 2D grid, the pose graph here is left free in six
+degrees of freedom — which is what the terrain world needs, since the warehouse
+floor and the yard platform 28 cm above it fall on the same cells in 2D.
+
+```bash
+ros2 launch axioma_bringup vslam_bringup.launch.py
+```
+
+That opens Gazebo, RViz, the teleop GUI and RTAB-Map. You have to drive: a
+stationary camera adds no nodes to the pose graph and closes no loops.
+
+| Argument | Values | What it does |
+|---|---|---|
+| `world` | `terrain` (default), `office` | Which world to map |
+| `odom_source` | `visual` (default), `ekf` | Who estimates the motion and, with it, who publishes `odom -> base_footprint` |
+| `rtabmap_viz` | `false` (default), `true` | RTAB-Map's own window with the feature matches |
+
+Outputs: `/cloud_map` (assembled 3D cloud), `/map` (Nav2-ready occupancy grid)
+and the database at `~/.ros/axioma_vslam.db`.
+
+To relocalise against an existing database instead of mapping again:
+
+```bash
+ros2 launch axioma_slam vslam.launch.py localization:=true
+```
+
+`vslam.launch.py` is agnostic of simulation or real robot. On the physical
+robot the ZED wrapper publishes the same three topics under `/zed2i/zed_node/`,
+so override the arguments rather than editing the file:
+
+```bash
+ros2 launch axioma_slam vslam.launch.py \
+    use_sim_time:=false \
+    rgb_topic:=/zed2i/zed_node/rgb/image_rect_color \
+    depth_topic:=/zed2i/zed_node/depth/depth_registered \
+    camera_info_topic:=/zed2i/zed_node/rgb/camera_info
+```
+
+### On visual odometry drift
+
+With `odom_source:=visual` the camera is the only source of motion. Measured on
+the terrain world: 3.4% short over a 2.62 m straight run, and roughly 15% off
+after two 114-degree turns. If what you want is a metrically faithful map,
+`odom_source:=ekf` leaves the mapping to the camera and the pose to the filter
+that already fuses IMU and wheels.
+
+## Autonomous navigation
+
+Launch the simulation with Nav2 and RViz (requires a previously saved map):
 
 ```bash
 ros2 launch axioma_bringup navigation_bringup.launch.py
 ```
 
-En RViz2:
+In RViz2:
 
-1. **2D Pose Estimate** para fijar la pose inicial del robot
-2. **2D Goal Pose** para enviar un objetivo de navegación
-3. Observa los costmaps global/local, las trayectorias planeadas y la nube de
-   partículas de AMCL
+1. **2D Pose Estimate** to set the robot's initial pose
+2. **2D Goal Pose** to send a navigation goal
+3. Watch the global/local costmaps, the planned trajectories and AMCL's
+   particle cloud
 
-## LiDAR físico
+## Physical LiDAR
 
-En el robot real, arranca el YDLIDAR X3 PRO con el perfil que trae el
-proyecto:
+On the real robot, start the YDLIDAR X3 PRO with the profile this project
+ships:
 
 ```bash
 ros2 launch axioma_bringup lidar.launch.py            # /dev/ttyUSB0
 ros2 launch axioma_bringup lidar.launch.py port:=/dev/ttyUSB1
 ```
 
-El launch propio de `ydlidar_ros2_driver` usa por defecto
-`params/ydlidar.yaml`, que es un perfil de X4: 128000 baudios, doble canal,
-9 kHz. Arrancar un X3 PRO con ese perfil hace que el driver espere una
-respuesta de info del dispositivo que el hardware nunca envía, y registra
-`Failed to get scan` indefinidamente. El perfil que trae este proyecto también
-estampa los escaneos con `base_scan`, el frame que buscan el URDF, AMCL, los
-dos costmaps y SLAM Toolbox; el `laser_frame` de fábrica rompe cada búsqueda de
-TF en el robot real.
+`ydlidar_ros2_driver`'s own launch defaults to `params/ydlidar.yaml`, which is
+an X4 profile: 128000 baud, dual channel, 9 kHz. Starting an X3 PRO with that
+profile makes the driver wait for a device info reply the hardware never sends,
+and it logs `Failed to get scan` indefinitely. The profile this project ships
+also stamps the scans with `base_scan`, the frame the URDF, AMCL, both costmaps
+and SLAM Toolbox all look for; the stock `laser_frame` breaks every TF lookup
+on the real robot.
 
-## Comandos útiles
+## Useful commands
 
 ```bash
-# Monitoreo
-ros2 node list                           # Nodos activos
-ros2 topic list                          # Tópicos activos
-ros2 topic hz /scan                      # Frecuencia del LiDAR
-ros2 topic echo /cmd_vel                 # Comandos de velocidad
-ros2 run tf2_ros tf2_echo map base_link  # Consulta de TF
-ros2 run tf2_tools view_frames           # Diagrama del árbol de TF
+# Monitoring
+ros2 node list                           # Active nodes
+ros2 topic list                          # Active topics
+ros2 topic hz /scan                      # LiDAR rate
+ros2 topic echo /cmd_vel                 # Velocity commands
+ros2 run tf2_ros tf2_echo map base_link  # TF query
+ros2 run tf2_tools view_frames           # TF tree diagram
 
-# Depuración
+# Debugging
 ros2 node info /slam_toolbox
 ros2 param list /controller_server
 ros2 bag record -a -o navigation_data
@@ -93,4 +141,4 @@ ros2 bag record -a -o navigation_data
 
 ---
 
-Vuelve al [README](../README.md).
+Back to the [README](../README.md).
