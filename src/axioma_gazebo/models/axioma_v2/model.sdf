@@ -568,12 +568,20 @@
            that is (-0.01, +0.06, 0): half the 120 mm stereo baseline to the
            left, and the 10 mm optical offset back.
 
-           gz_frame_id names the *optical* frame, not this one. Gazebo poses a
-           camera x-forward while every ROS image consumer expects z-forward,
-           and the URDF already publishes the -90/0/-90 rotation between the
-           two. Stamping the images with the optical frame is what makes the
-           point cloud land in the right place in RViz instead of lying on its
-           side, rotated 90 degrees. -->
+           gz_frame_id names the optical child of this link, because that is
+           what the sensor's three ROS outputs actually are: camera_info
+           carries a pinhole K (fx=fy=224.07, cx=320, cy=180 for the 110 deg
+           FOV below) and the depth image measures along the optical axis.
+           Both are meaningless in an x-forward frame.
+
+           The one output that disagrees is gz-sensors' own point cloud: it is
+           emitted in the sensor's Gazebo axes, x forward, measured on Fortress
+           6.18 (x carried the range, 0.30-12 m, matching the clip below, and z
+           was up). One gz_frame_id cannot label both conventions, so the cloud
+           is not bridged at all - simulation.launch.py reprojects the depth
+           image instead, which lands in the optical frame like every other
+           ROS RGB-D cloud. Bridging the raw cloud and stamping it optical is
+           what laid it on its side in RViz, rotated 90 degrees. -->
       <sensor name="zed2i" type="rgbd_camera">
         <pose>-0.01 0.06 0 0 0 0</pose>
         <always_on>true</always_on>

@@ -2,8 +2,9 @@ import os
 import xacro
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition, UnlessCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.conditions import IfCondition
+from launch.substitutions import (AndSubstitution, LaunchConfiguration,
+                                  NotSubstitution, PathJoinSubstitution)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
@@ -40,6 +41,15 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
     world = LaunchConfiguration('world', default=world_file)
     use_ekf = LaunchConfiguration('use_ekf', default='true')
+    # Who owns odom -> base_footprint. False means neither the EKF nor
+    # odom_to_tf publishes it and a node outside this file does - visual
+    # odometry in axioma_slam's VSLAM demo. The EKF still runs and still
+    # publishes /odometry/filtered, so the two estimates stay comparable.
+    publish_odom_tf = LaunchConfiguration('publish_odom_tf', default='true')
+    # Whether to reproject the depth image into /zed2i/points. It exists for
+    # RViz; a consumer that reads the depth image itself, such as the RGB-D
+    # SLAM in axioma_slam, does not need it and should not pay for it.
+    publish_points = LaunchConfiguration('publish_points', default='true')
     # Where the robot lands. The office world is happy with the origin; the
     # terrain world's origin sits between the two ramps, on the strip of floor
     # separating the warehouse from the yard platform, which is a silly place
@@ -91,15 +101,52 @@ def generate_launch_description():
             # Chassis IMU. This is what makes the robot's roll and pitch
             # observable rather than assumed — see axioma_perception.
             '/imu@sensor_msgs/msg/Imu[gz.msgs.IMU',
-            # ZED 2i. Bridged for inspection in RViz, not because anything
-            # subscribes: the EKF's position source in simulation is the
-            # wheels, since the ZED SDK's tracking has no Gazebo equivalent.
+            # ZED 2i. The EKF's position source in simulation is still the
+            # wheels - the ZED SDK's tracking has no Gazebo equivalent - but
+            # these three feed RViz and the RGB-D SLAM in vslam.launch.py.
+            #
+            # Gazebo's own point cloud is deliberately NOT bridged: it comes
+            # out in the sensor's x-forward axes while camera_info and the
+            # depth image are optical, and a single gz_frame_id cannot label
+            # both. See the sensor block in models/axioma_v2/model.sdf.
             '/zed2i/image@sensor_msgs/msg/Image[gz.msgs.Image',
             '/zed2i/depth_image@sensor_msgs/msg/Image[gz.msgs.Image',
-            '/zed2i/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
             '/zed2i/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
         ],
         output='screen'
+    )
+
+    # /zed2i/points, reprojected from the depth image rather than bridged.
+    # Reading it out of camera_info's intrinsics is what puts it in the optical
+    # frame, the convention every ROS point cloud consumer assumes, and it is
+    # the same projection the ZED SDK performs on real hardware.
+    points = Node(
+        package='rtabmap_util',
+        executable='point_cloud_xyzrgb',
+        name='zed2i_points',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            # The RGB and depth images are rendered by the same sensor but
+            # published as separate messages, so their stamps only line up
+            # approximately.
+            'approx_sync': True,
+            # Half resolution, 320x180. Projecting all 640x360 pixels costs a
+            # third of a core and drops the simulation from RTF 0.99 to 0.76,
+            # which is visible as stutter while driving; 57k points still draw
+            # a dense cloud.
+            'decimation': 2,
+            'voxel_size': 0.0,
+            'min_depth': 0.3,
+            'max_depth': 20.0,
+        }],
+        remappings=[
+            ('rgb/image', '/zed2i/image'),
+            ('depth/image', '/zed2i/depth_image'),
+            ('rgb/camera_info', '/zed2i/camera_info'),
+            ('cloud', '/zed2i/points'),
+        ],
+        condition=IfCondition(publish_points)
     )
 
     # Robot state publisher (xacro from axioma_description).
@@ -133,7 +180,8 @@ def generate_launch_description():
         name='odom_to_tf',
         output='screen',
         parameters=[{'use_sim_time': use_sim_time}],
-        condition=UnlessCondition(use_ekf)
+        condition=IfCondition(AndSubstitution(NotSubstitution(use_ekf),
+                                              publish_odom_tf))
     )
 
     ekf = IncludeLaunchDescription(
@@ -144,6 +192,7 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
             'config_file': PathJoinSubstitution(
                 [pkg_axioma_perception, 'config', 'ekf_sim.yaml']),
+            'publish_tf': publish_odom_tf,
         }.items(),
         condition=IfCondition(use_ekf)
     )
@@ -168,6 +217,22 @@ def generate_launch_description():
         DeclareLaunchArgument('spawn_yaw', default_value='0.0',
                               description='Spawn yaw, radians'),
         DeclareLaunchArgument(
+            'publish_points',
+            default_value='true',
+            choices=['true', 'false'],
+            description='Reproject the ZED depth image into /zed2i/points. '
+                        'False saves a fifth of a core when the consumer '
+                        'reads the depth image directly'
+        ),
+        DeclareLaunchArgument(
+            'publish_odom_tf',
+            default_value='true',
+            choices=['true', 'false'],
+            description='Publish odom -> base_footprint from this launch. '
+                        'False hands the transform to an external node, such '
+                        'as the visual odometry in axioma_slam/vslam.launch.py'
+        ),
+        DeclareLaunchArgument(
             'use_ekf',
             default_value='true',
             description='Fuse the IMU with wheel odometry through '
@@ -178,6 +243,7 @@ def generate_launch_description():
         gz_sim,
         spawn_entity,
         bridge,
+        points,
         robot_state_publisher,
         odom_to_tf,
         ekf,
