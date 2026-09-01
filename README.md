@@ -1,7 +1,7 @@
 # Axioma 4WD Autonomous Mobile Robot
 
 <div align="center">
-<img src="images/Portada.gif" width="85%"/>
+<img src="images/cover.gif" width="85%"/>
 </div>
 
 </br>
@@ -15,7 +15,7 @@
 [![Ignition Fortress](https://img.shields.io/badge/Gazebo-Fortress-orange)](#)
 [![Nav2](https://img.shields.io/badge/Nav2-Humble-00599C)](#)
 [![SLAM Toolbox](https://img.shields.io/badge/SLAM-Toolbox-green)](#)
-[![License](https://img.shields.io/badge/License-BSD-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 [![GitHub](https://img.shields.io/badge/GitHub-MrDavidAlv-181717?logo=github)](https://github.com/MrDavidAlv/Axioma_robot)
 ![Visitors](https://komarev.com/ghpvc/?username=MrDavidAlv&repo=Axioma_robot&label=Visitors&color=brightgreen)
 
@@ -55,8 +55,8 @@ ros2 launch axioma_bringup navigation_bringup.launch.py
 ros2 launch axioma_bringup vslam_bringup.launch.py
 ```
 
-Full steps, including Gazebo, in the **[Installation Guide](documentacion/guia-instalacion.md)**.
-Everything the robot can do, in the **[Usage Guide](documentacion/guia-uso.md)**.
+Full steps, including Gazebo, in the **[Installation Guide](docs/installation-guide.md)**.
+Everything the robot can do, in the **[Usage Guide](docs/usage-guide.md)**.
 
 ---
 
@@ -119,7 +119,7 @@ What it covers, end to end:
 | **RGB-D Visual SLAM** | RTAB-Map building a 3D map and a Nav2-ready occupancy grid from the ZED 2i, with camera-only odometry or the fused EKF pose as the motion source |
 | **Ignition Gazebo Simulation** | Gazebo Sim (Fortress) with the ros_gz bridge for all sensor and actuator interfaces |
 | **Configurable Parameters** | All Nav2, AMCL, SLAM, and DWB parameters tunable per application |
-| **Open Source** | BSD license, free for academic, research, and commercial use |
+| **Open Source** | Apache 2.0 license, free for academic, research, and commercial use |
 
 </div>
 
@@ -128,7 +128,7 @@ What it covers, end to end:
 ## Mathematical Model
 
 <div align="center">
-<img src="images/modelo-matematico.png" width="900"/>
+<img src="images/mathematical-model.png" width="900"/>
 </div>
 
 4WD skid-steer kinematics, the control chain, and where every limit is
@@ -138,7 +138,7 @@ projection, and every number on the sheet is read from `model.sdf`,
 rendered, so it cannot drift out of date:
 
 ```bash
-python3 documentacion/modelo-matematico/render_diagram.py
+python3 docs/mathematical-model/render_diagram.py
 ```
 
 **Differential kinematics:**
@@ -163,7 +163,7 @@ pose, which brings yaw error under 3 % from 0.1 to 1.0 rad/s.
 
 Full write-up — geometry, direct/inverse kinematics, the control chain, every
 parameter with its source — in
-**[`documentacion/modelo-matematico/`](documentacion/modelo-matematico/)**.
+**[`docs/mathematical-model/`](docs/mathematical-model/)**.
 
 ---
 
@@ -364,7 +364,7 @@ ros2 launch axioma_slam vslam.launch.py localization:=true
 ```
 
 <div align="center">
-<img src="images/Camera-ZED.png" width="900"/>
+<img src="images/zed-depth-cloud.png" width="900"/>
 <br/>
 <em>Gazebo and RViz side by side: the same scene as geometry and as the depth
 cloud the ZED 2i returns, coloured by height.</em>
@@ -443,7 +443,7 @@ skid-steer's lateral scrub accumulates, while SLAM's oscillates around zero with
 no trend, because every loop closure puts it back.
 
 Odometry-vs-SLAM telemetry and the live localisation cross-check are in
-**[SLAM Validation, full write-up](documentacion/validacion-slam.md)**.
+**[SLAM Validation, full write-up](docs/slam-validation.md)**.
 
 ---
 
@@ -459,7 +459,7 @@ Odometry-vs-SLAM telemetry and the live localisation cross-check are in
 </div>
 
 Build photos and the CAD/assembly videos are in
-**[Project History](documentacion/historial-proyecto.md)**.
+**[Project History](docs/project-history.md)**.
 
 ---
 
@@ -477,7 +477,7 @@ Build photos and the CAD/assembly videos are in
 
 Earlier recordings from the ROS 2 Foxy version of this project — navigation,
 SLAM, sensor/TF visualization, mechanical assembly — are in
-**[Project History](documentacion/historial-proyecto.md)**.
+**[Project History](docs/project-history.md)**.
 
 ---
 
@@ -487,7 +487,7 @@ SLAM, sensor/TF visualization, mechanical assembly — are in
   (gz-sim 6) · **Python**: 3.8+
 
 Full requirements, the Gazebo install, and every dependency in the
-**[Installation Guide](documentacion/guia-instalacion.md)**.
+**[Installation Guide](docs/installation-guide.md)**.
 
 ---
 
@@ -496,14 +496,14 @@ Full requirements, the Gazebo install, and every dependency in the
 The Quick Start above covers launching SLAM and Navigation. For exploring
 with `teleop_twist_keyboard` or the GUI, saving and scoring a map, running the
 physical YDLIDAR X3 PRO, and a reference list of useful `ros2` commands, see
-the **[Usage Guide](documentacion/guia-uso.md)**.
+the **[Usage Guide](docs/usage-guide.md)**.
 
 ---
 
 ## Project Structure
 
 Package layout — launch files, configs, scripts — is in
-**[Project Structure](documentacion/estructura-proyecto.md)**.
+**[Project Structure](docs/project-structure.md)**.
 
 ---
 
@@ -511,4 +511,4 @@ Package layout — launch files, configs, scripts — is in
 
 **Author**: Mario David Alvarez Vallejo
 **Repository**: [github.com/MrDavidAlv/Axioma_robot](https://github.com/MrDavidAlv/Axioma_robot)
-**License**: BSD -- Free for academic and research use
+**License**: Apache 2.0 -- see [LICENSE](LICENSE)

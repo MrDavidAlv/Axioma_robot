@@ -1,4 +1,4 @@
-# 📡 SLAM Validation
+# SLAM Validation
 
 The README shows the headline result (the map scored against the exact floor
 plan). Here is the rest of the evidence: how it is measured, and why raw

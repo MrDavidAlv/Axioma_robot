@@ -1,4 +1,4 @@
-# 📁 Project Structure
+# Project Structure
 
 ```
 Axioma_robot/
@@ -79,13 +79,13 @@ Axioma_robot/
 │       └── launch/
 │           └── teleop_gui.launch.py
 │
-├── documentacion/
-│   ├── modelo-matematico/         # Kinematics, control and physical parameters
-│   ├── guia-instalacion.md
-│   ├── guia-uso.md
-│   ├── validacion-slam.md
-│   ├── historial-proyecto.md
-│   └── estructura-proyecto.md     # this document
+├── docs/
+│   ├── mathematical-model/         # Kinematics, control and physical parameters
+│   ├── installation-guide.md
+│   ├── usage-guide.md
+│   ├── slam-validation.md
+│   ├── project-history.md
+│   └── project-structure.md     # this document
 │
 ├── images/                        # Documentation images
 └── README.md

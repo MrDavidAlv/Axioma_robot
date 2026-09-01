@@ -24,7 +24,7 @@ exists to break two assumptions Axioma's stack makes, one per half:
   * **The yard** breaks "friction is a constant". The three surface patches
     carry genuinely different ``<mu>``/``<mu2>``, not just different colours.
     The effective skid-steer track ``W = 0.1679 m`` documented in
-    ``documentacion/modelo-matematico/control.md`` was calibrated against the
+    ``docs/mathematical-model/control.md`` was calibrated against the
     office world's single friction value, and that document says so. This is
     the world where that caveat becomes testable.
 

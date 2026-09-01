@@ -11,9 +11,9 @@ The description is xacro, so this needs the ``xacro`` module on the path.
 Source the ROS environment first:
 
     source /opt/ros/humble/setup.bash
-    python3 documentacion/modelo-matematico/render_diagram.py [out.png]
+    python3 docs/mathematical-model/render_diagram.py [out.png]
 
-Default output: images/modelo-matematico.png
+Default output: images/mathematical-model.png
 """
 import math
 import os
@@ -365,7 +365,7 @@ def main():
         (f'AMCL {am["min_particles"]}-{am["max_particles"]} particles, {am["max_beams"]} beams', ''),
     ], size=9.2, dy=0.0585)
 
-    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'images', 'modelo-matematico.png')
+    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'images', 'mathematical-model.png')
     plt.savefig(out, dpi=110, facecolor='white')
     print('->', out)
 

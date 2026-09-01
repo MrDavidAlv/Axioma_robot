@@ -1,4 +1,4 @@
-# 🚀 Usage Guide
+# Usage Guide
 
 Complete reference for operating Axioma, in simulation and on the physical
 robot. The README covers the essentials in its Quick Start; the rest is here.

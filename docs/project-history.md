@@ -1,4 +1,4 @@
-# 🎬 Project History
+# Project History
 
 Behind the scenes: the physical build and the recordings from an earlier
 version of the project (ROS 2 Foxy). The core functionality is the same on

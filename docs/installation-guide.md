@@ -1,11 +1,11 @@
-# 🛠️ Installation Guide
+# Installation Guide
 
 Everything needed to get Axioma running, from a clean Ubuntu to
 `colcon build`. The README only links here; this is the full reference.
 
 ---
 
-## 📋 Requirements
+## Requirements
 
 ### Software
 
@@ -101,5 +101,5 @@ echo "source ~/ros2/axioma_ws/install/setup.bash" >> ~/.bashrc
 
 ---
 
-With that built, continue with the [Usage Guide](guia-uso.md) or go back to the
+With that built, continue with the [Usage Guide](usage-guide.md) or go back to the
 [README](../README.md).
