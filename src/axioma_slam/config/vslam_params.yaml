@@ -1,0 +1,71 @@
+# RGB-D visual SLAM (RTAB-Map) for the ZED 2i.
+#
+# Everything here that departs from RTAB-Map's defaults departs for a measured
+# reason, recorded below. The defaults are tuned for hand-held cameras looking
+# at textured rooms; a simulated warehouse is the opposite case, because every
+# surface is flat-shaded and the only corners in the image are the edges where
+# two objects meet.
+
+rgbd_odometry:
+  ros__parameters:
+    frame_id: base_footprint
+    approx_sync: true          # RGB and depth are separate messages
+    publish_tf: true           # this node owns odom -> base_footprint here
+    wait_for_transform: 0.2
+
+    # Measured on the terrain world, driving the north ramp at 0.22 m/s with
+    # RTAB-Map's defaults: registration reported "Too low inliers after bundle
+    # adjustment: 18<20" and "Not enough inliers 19/20 (matches=21)". The scene
+    # yields around twenty features, the default demands twenty, and the first
+    # marginal frame starts a collapse - once the motion model extrapolates
+    # past a failure the guess is metres wrong and matches fall to single
+    # digits. The three settings below are what pulled tracking off that edge:
+    # a threshold the scene can actually meet, weaker corners accepted so there
+    # are more of them, and a reset instead of a diverging extrapolation.
+    #
+    # After the change, quality went from 31-40 inliers to 69-72 and a 2.62 m
+    # run up the ramp produced zero registration failures.
+    Vis/MinInliers: "10"
+    Vis/MaxFeatures: "1500"
+    GFTT/QualityLevel: "0.0003"
+    GFTT/MinDistance: "3.0"
+    Odom/ResetCountdown: "1"
+    OdomF2M/MaxSize: "3000"
+
+rtabmap:
+  ros__parameters:
+    frame_id: base_footprint
+    subscribe_depth: true
+    subscribe_rgb: true
+    subscribe_scan: false
+    approx_sync: true
+    wait_for_transform: 0.2
+
+    # The terrain world is two levels joined by ramps, so the pose graph has to
+    # be free in six degrees of freedom. Forcing 3DoF is the usual choice for a
+    # wheeled robot and it is exactly what this branch exists to avoid: it
+    # would flatten the yard platform onto the warehouse floor.
+    Reg/Force3DoF: "false"
+    Optimizer/Slam2D: "false"
+
+    # Loop closure has to clear the same feature-poverty bar as the odometry.
+    Vis/MinInliers: "10"
+    Vis/MaxFeatures: "1500"
+    GFTT/QualityLevel: "0.0003"
+    Kp/MaxFeatures: "500"
+
+    # One map update per second. The camera runs at 15 Hz and mapping every
+    # frame buys nothing at 0.22 m/s while costing real time factor.
+    Rtabmap/DetectionRate: "1.0"
+
+    # A 2D occupancy grid projected from the depth cloud, so Nav2 can consume
+    # this map the same way it consumes SLAM Toolbox's. Obstacles are anything
+    # standing more than 6 cm above the local ground plane, which clears the
+    # 2 cm ramp lip and the 3.81 cm wheels.
+    Grid/FromDepth: "true"
+    Grid/RangeMax: "8.0"
+    Grid/MaxObstacleHeight: "1.2"
+    Grid/MaxGroundAngle: "35"
+    Grid/NormalsSegmentation: "true"
+    Grid/CellSize: "0.05"
+    RGBD/OptimizeMaxError: "3.0"

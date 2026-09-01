@@ -11,6 +11,8 @@
   <exec_depend>axioma_slam</exec_depend>
   <exec_depend>axioma_navigation</exec_depend>
   <exec_depend>rviz2</exec_depend>
+  <!-- vslam_bringup brings up the teleop GUI: visual SLAM needs motion -->
+  <exec_depend>axioma_teleop_gui</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
 
   <test_depend>ament_copyright</test_depend>

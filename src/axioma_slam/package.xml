@@ -10,6 +10,10 @@
   <buildtool_depend>ament_python</buildtool_depend>
 
   <exec_depend>slam_toolbox</exec_depend>
+  <!-- RGB-D visual SLAM, vslam.launch.py -->
+  <exec_depend>rtabmap_odom</exec_depend>
+  <exec_depend>rtabmap_slam</exec_depend>
+  <exec_depend>rtabmap_viz</exec_depend>
   <exec_depend>nav2_map_server</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
