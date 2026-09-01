@@ -2,7 +2,6 @@
 build/
 install/
 log/
-.claude/
 # Archivos de CMake
 CMakeFiles/
 CMakeCache.txt
